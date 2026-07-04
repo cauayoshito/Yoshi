@@ -1,0 +1,23 @@
+{
+  "name": "yoshibet-server",
+  "version": "1.0.0",
+  "description": "Backend da plataforma YOSHI BET — API REST com autenticação JWT, carteira transacional, PIX e jogos server-side",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "better-sqlite3": "^12.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "jsonwebtoken": "^9.0.2",
+    "pix-utils": "^2.7.0"
+  }
+}

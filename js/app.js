@@ -1,7 +1,7 @@
 /* ============================================================
-   YOSHI BET — Lógica da plataforma (demo front-end)
-   Saldo, autenticação e histórico ficam no localStorage.
-   Nenhum dinheiro real envolvido.
+   YOSHI BET — Front-end integrado à API (server/)
+   Autenticação JWT, carteira e jogos rodam no servidor;
+   aqui fica só interface e animação.
    ============================================================ */
 
 (() => {
@@ -10,24 +10,37 @@
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => [...document.querySelectorAll(sel)];
 
-  const STORAGE_KEY = "yoshibet_state";
+  const TOKEN_KEY = "yoshibet_token";
+  let token = localStorage.getItem(TOKEN_KEY);
+  let user = null;
+  let balanceCents = 0;
+  let GAMES = [];
 
-  const state = loadState();
+  const fmt = (cents) =>
+    (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-  function loadState() {
+  /* ============ CLIENTE DA API ============ */
+  async function api(method, path, body) {
+    let res;
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (_) { /* estado corrompido — recomeça */ }
-    return { user: null, balance: 0, history: [] };
+      res = await fetch(path, {
+        method,
+        headers: {
+          "content-type": "application/json",
+          ...(token ? { authorization: `Bearer ${token}` } : {}),
+        },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+    } catch {
+      throw new Error("Sem conexão com o servidor. Rode: cd server && npm start");
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      if (res.status === 401 && token) setLoggedOut();
+      throw new Error(data.error || "Erro inesperado, tente novamente");
+    }
+    return data;
   }
-
-  function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  }
-
-  const fmt = (v) =>
-    v.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   /* ============ TOAST ============ */
   let toastTimer;
@@ -36,79 +49,50 @@
     el.textContent = msg;
     el.classList.remove("hidden");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.add("hidden"), 3200);
+    toastTimer = setTimeout(() => el.classList.add("hidden"), 3400);
   }
 
-  /* ============ UI DE AUTENTICAÇÃO / SALDO ============ */
-  function refreshUI() {
-    const logged = !!state.user;
-    $("#authButtons").classList.toggle("hidden", logged);
-    $("#userArea").classList.toggle("hidden", !logged);
-    $("#balanceValue").textContent = fmt(state.balance);
-    $("#profileBalance").textContent = fmt(state.balance);
-    if (state.user) {
-      $("#profileName").textContent = state.user.name;
-      $("#profileEmail").textContent = state.user.email;
+  /* ============ SESSÃO / SALDO ============ */
+  function setBalance(cents) {
+    if (typeof cents !== "number") return;
+    balanceCents = cents;
+    $("#balanceValue").textContent = fmt(cents);
+    $("#profileBalance").textContent = fmt(cents);
+  }
+
+  function setLoggedIn(u, tk) {
+    user = u;
+    if (tk) {
+      token = tk;
+      localStorage.setItem(TOKEN_KEY, tk);
     }
-    renderHistory();
+    $("#authButtons").classList.add("hidden");
+    $("#userArea").classList.remove("hidden");
+    $("#profileName").textContent = u.name;
+    $("#profileEmail").textContent = u.email;
+    setBalance(u.balanceCents);
+  }
+
+  function setLoggedOut() {
+    user = null;
+    token = null;
+    localStorage.removeItem(TOKEN_KEY);
+    $("#authButtons").classList.remove("hidden");
+    $("#userArea").classList.add("hidden");
+    setBalance(0);
   }
 
   function requireLogin() {
-    if (state.user) return true;
+    if (user) return true;
     toast("Faça login ou cadastre-se para jogar 🚀");
     openModal("registerModal");
     return false;
-  }
-
-  function credit(amount) {
-    state.balance = Math.round((state.balance + amount) * 100) / 100;
-    saveState();
-    refreshUI();
-  }
-
-  function debit(amount) {
-    if (state.balance < amount) {
-      toast("Saldo insuficiente. Deposite para continuar 💰");
-      openModal("depositModal");
-      return false;
-    }
-    state.balance = Math.round((state.balance - amount) * 100) / 100;
-    saveState();
-    refreshUI();
-    return true;
-  }
-
-  function addHistory(game, bet, win) {
-    state.history.unshift({ game, bet, win, at: Date.now() });
-    state.history = state.history.slice(0, 30);
-    saveState();
-    renderHistory();
-  }
-
-  function renderHistory() {
-    const list = $("#historyList");
-    if (!state.history.length) {
-      list.innerHTML = '<p class="muted">Nenhuma jogada ainda. Bora jogar? 🎰</p>';
-      return;
-    }
-    list.innerHTML = state.history
-      .map((h) => {
-        const net = h.win - h.bet;
-        const cls = net >= 0 ? "history-win" : "history-loss";
-        const sign = net >= 0 ? "+" : "−";
-        return `<div class="history-item">
-          <span>${h.game} · aposta R$ ${fmt(h.bet)}</span>
-          <span class="${cls}">${sign} R$ ${fmt(Math.abs(net))}</span>
-        </div>`;
-      })
-      .join("");
   }
 
   /* ============ NAVEGAÇÃO ENTRE VIEWS ============ */
   const VIEWS = ["home", "promos", "profile"];
 
   function showView(name) {
-    // casino/live/crash abrem a home filtrada na categoria
     const catMap = { casino: "slots", live: "live", crash: "crash" };
     let target = name;
     if (catMap[name]) {
@@ -117,7 +101,10 @@
     } else if (name === "home") {
       setCategory("all");
     }
-    if (name === "profile" && !state.user) return void requireLogin();
+    if (name === "profile") {
+      if (!user) return void requireLogin();
+      loadHistory();
+    }
 
     VIEWS.forEach((v) => $(`#view-${v}`).classList.toggle("hidden", v !== target));
     $$(".nav-link").forEach((a) => a.classList.toggle("active", a.dataset.view === name));
@@ -145,6 +132,7 @@
   }
   function closeModals() {
     $$(".modal-overlay").forEach((m) => m.classList.add("hidden"));
+    stopPixPolling();
   }
 
   document.addEventListener("click", (e) => {
@@ -152,7 +140,7 @@
     if (opener) {
       e.preventDefault();
       const id = opener.dataset.modal;
-      if (id === "depositModal" && !state.user) return void requireLogin();
+      if (id === "depositModal" && !user) return void requireLogin();
       openModal(id);
     }
     if (e.target.closest("[data-close]") || e.target.classList.contains("modal-overlay")) {
@@ -169,31 +157,41 @@
     if (e.key === "Escape") closeModals();
   });
 
-  /* ============ LOGIN / CADASTRO (demo) ============ */
-  $("#registerForm").addEventListener("submit", (e) => {
+  /* ============ LOGIN / CADASTRO ============ */
+  $("#registerForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    state.user = { name: $("#regName").value.trim(), email: $("#regEmail").value.trim() };
-    saveState();
-    refreshUI();
-    closeModals();
-    toast(`Bem-vindo, ${state.user.name}! 🎉 Faça seu primeiro depósito e ganhe 100% de bônus.`);
-    openModal("depositModal");
+    try {
+      const data = await api("POST", "/api/auth/register", {
+        name: $("#regName").value.trim(),
+        email: $("#regEmail").value.trim(),
+        password: $("#regPass").value,
+      });
+      setLoggedIn(data.user, data.token);
+      closeModals();
+      toast(`Bem-vindo, ${data.user.name}! 🎉 Deposite e ganhe 100% de bônus.`);
+      openModal("depositModal");
+    } catch (err) {
+      toast(err.message);
+    }
   });
 
-  $("#loginForm").addEventListener("submit", (e) => {
+  $("#loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const email = $("#loginEmail").value.trim();
-    state.user = { name: email.split("@")[0], email };
-    saveState();
-    refreshUI();
-    closeModals();
-    toast(`Bem-vindo de volta, ${state.user.name}! 🍀`);
+    try {
+      const data = await api("POST", "/api/auth/login", {
+        email: $("#loginEmail").value.trim(),
+        password: $("#loginPass").value,
+      });
+      setLoggedIn(data.user, data.token);
+      closeModals();
+      toast(`Bem-vindo de volta, ${data.user.name}! 🍀`);
+    } catch (err) {
+      toast(err.message);
+    }
   });
 
   $("#logoutBtn").addEventListener("click", () => {
-    state.user = null;
-    saveState();
-    refreshUI();
+    setLoggedOut();
     showView("home");
     toast("Você saiu da conta. Até logo! 👋");
   });
@@ -201,21 +199,34 @@
   $("#avatarBtn").addEventListener("click", () => showView("profile"));
   $("#balanceChip").addEventListener("click", () => showView("profile"));
 
-  $("#withdrawBtn").addEventListener("click", () => {
-    if (state.balance <= 0) return void toast("Sem saldo para sacar 😅");
-    toast(`Demo: saque de R$ ${fmt(state.balance)} solicitado via PIX ⚡`);
-    state.balance = 0;
-    saveState();
-    refreshUI();
+  $("#withdrawBtn").addEventListener("click", async () => {
+    if (balanceCents < 2000) return void toast("Saque mínimo: R$ 20,00");
+    try {
+      const data = await api("POST", "/api/wallet/withdraw", {
+        amountCents: balanceCents,
+        pixKey: user.email,
+      });
+      setBalance(data.balanceCents);
+      toast(`⚡ Saque de R$ ${fmt(data.withdrawal.amount_cents)} enviado para sua chave PIX!`);
+    } catch (err) {
+      toast(err.message);
+    }
   });
 
-  /* ============ DEPÓSITO PIX (demo) ============ */
-  let depositValue = 50;
-  let pixTimer = null;
+  /* ============ DEPÓSITO PIX ============ */
+  let depositValue = 50; // em reais
+  let pixPollTimer = null;
+
+  function stopPixPolling() {
+    clearInterval(pixPollTimer);
+    pixPollTimer = null;
+    $("#pixArea").classList.add("hidden");
+    $("#generatePixBtn").disabled = false;
+  }
 
   function updateBonusNote() {
     $("#bonusNote").innerHTML =
-      `🎁 Você receberá <strong>+R$ ${fmt(Math.min(depositValue, 500))} de bônus</strong> (100%)`;
+      `🎁 Primeiro depósito ganha <strong>+R$ ${fmt(Math.min(depositValue, 500) * 100)} de bônus</strong> (100%)`;
   }
 
   $$(".amount-btn").forEach((btn) =>
@@ -236,34 +247,46 @@
     updateBonusNote();
   });
 
-  $("#generatePixBtn").addEventListener("click", () => {
+  $("#generatePixBtn").addEventListener("click", async () => {
     if (depositValue < 20) return void toast("Depósito mínimo: R$ 20");
-    const code = `00020126580014BR.GOV.BCB.PIX0136${crypto.randomUUID()}5204000053039865406${depositValue.toFixed(2)}5802BR5909YOSHI BET6009SAO PAULO`;
-    $("#pixCode").value = code;
-    $("#pixArea").classList.remove("hidden");
-    clearTimeout(pixTimer);
-    // Demo: confirma o "pagamento" sozinho após alguns segundos
-    pixTimer = setTimeout(() => {
-      const bonus = Math.min(depositValue, 500);
-      credit(depositValue + bonus);
-      closeModals();
-      $("#pixArea").classList.add("hidden");
-      toast(`✅ Depósito de R$ ${fmt(depositValue)} confirmado + R$ ${fmt(bonus)} de bônus!`);
-    }, 4000);
+    try {
+      $("#generatePixBtn").disabled = true;
+      const charge = await api("POST", "/api/wallet/deposit", {
+        amountCents: Math.round(depositValue * 100),
+      });
+      $("#pixCode").value = charge.brcode;
+      $("#pixArea").classList.remove("hidden");
+
+      // Polling até o "webhook" do PSP confirmar o pagamento
+      pixPollTimer = setInterval(async () => {
+        try {
+          const st = await api("GET", `/api/wallet/deposit/${charge.txid}`);
+          if (st.status === "paid") {
+            stopPixPolling();
+            closeModals();
+            setBalance(st.balanceCents);
+            toast(`✅ Depósito de R$ ${fmt(st.amount_cents)} confirmado!`);
+          }
+        } catch { /* tenta de novo no próximo tick */ }
+      }, 1500);
+    } catch (err) {
+      $("#generatePixBtn").disabled = false;
+      toast(err.message);
+    }
   });
 
   $("#copyPixBtn").addEventListener("click", async () => {
     try {
       await navigator.clipboard.writeText($("#pixCode").value);
       toast("Código PIX copiado! 📋");
-    } catch (_) {
+    } catch {
       $("#pixCode").select();
       document.execCommand("copy");
       toast("Código PIX copiado! 📋");
     }
   });
 
-  /* ============ GRADE DE JOGOS ============ */
+  /* ============ CATÁLOGO / GRADE DE JOGOS ============ */
   let currentCat = "all";
   let searchTerm = "";
 
@@ -276,7 +299,6 @@
 
   function renderGames() {
     const term = searchTerm.toLowerCase();
-    // Com busca ativa, procura no catálogo inteiro; sem busca, filtra pela categoria
     const finalList = term
       ? GAMES.filter(
           (g) => g.name.toLowerCase().includes(term) || g.provider.toLowerCase().includes(term)
@@ -306,7 +328,9 @@
 
   $("#searchInput").addEventListener("input", (e) => {
     searchTerm = e.target.value.trim();
-    $("#gridTitle").textContent = searchTerm ? `🔍 Resultados para "${searchTerm}"` : CAT_TITLES[currentCat];
+    $("#gridTitle").textContent = searchTerm
+      ? `🔍 Resultados para "${searchTerm}"`
+      : CAT_TITLES[currentCat];
     renderGames();
   });
 
@@ -319,7 +343,6 @@
     if (!game || !requireLogin()) return;
     if (game.playable === "slot") return void openSlot();
     if (game.playable === "mines") return void openMines();
-    // Placeholder para jogos de provedores externos
     $("#gameModalArt").textContent = game.emoji;
     $("#gameModalTitle").textContent = game.name;
     $("#gameModalProvider").textContent = game.provider;
@@ -327,6 +350,32 @@
   });
 
   $("#gameModalDemoBtn").addEventListener("click", openSlot);
+
+  /* ============ HISTÓRICO ============ */
+  async function loadHistory() {
+    try {
+      const data = await api("GET", "/api/games/history");
+      const list = $("#historyList");
+      if (!data.rounds.length) {
+        list.innerHTML = '<p class="muted">Nenhuma jogada ainda. Bora jogar? 🎰</p>';
+        return;
+      }
+      const names = { slot: "Fortune Yoshi", mines: "Mines" };
+      list.innerHTML = data.rounds
+        .map((r) => {
+          const net = r.win_cents - r.bet_cents;
+          const cls = net >= 0 ? "history-win" : "history-loss";
+          const sign = net >= 0 ? "+" : "−";
+          return `<div class="history-item">
+            <span>${names[r.game] || r.game} · aposta R$ ${fmt(r.bet_cents)}</span>
+            <span class="${cls}">${sign} R$ ${fmt(Math.abs(net))}</span>
+          </div>`;
+        })
+        .join("");
+    } catch (err) {
+      toast(err.message);
+    }
+  }
 
   /* ============ CARROSSEL ============ */
   const track = $("#carouselTrack");
@@ -346,63 +395,57 @@
   setInterval(() => goSlide(slide + 1), 6000);
   goSlide(0);
 
-  /* ============ TICKER DE GANHADORES ============ */
+  /* ============ TICKER DE GANHADORES (decorativo) ============ */
   function buildWinners() {
+    if (!GAMES.length) return;
     const items = [];
     for (let i = 0; i < 14; i++) {
       const name = WINNER_NAMES[Math.floor(Math.random() * WINNER_NAMES.length)];
       const game = GAMES[Math.floor(Math.random() * GAMES.length)];
-      const value = (Math.random() * 4900 + 100).toFixed(2);
+      const value = Math.random() * 4900 + 100;
       items.push(
-        `<span class="winner-item">💵 <em>${name}</em> ganhou <strong>R$ ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</strong> em ${game.name}</span>`
+        `<span class="winner-item">💵 <em>${name}</em> ganhou <strong>R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> em ${game.name}</span>`
       );
     }
-    // duplica para o loop do ticker ficar contínuo
     $("#winnersTrack").innerHTML = items.join("") + items.join("");
   }
-  buildWinners();
   setInterval(buildWinners, 30000);
 
   /* ============ SLOT: FORTUNE YOSHI ============ */
-  let slotBet = 1;
+  const BET_STEPS = [50, 100, 200, 500, 1000, 2500, 5000]; // centavos
+  let slotBetCents = 100;
   let spinning = false;
 
   function openSlot() {
     closeModals();
-    renderSlotGrid(randomSlotSymbols());
+    renderSlotGrid(Array.from({ length: 9 }, () => SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]));
     $("#slotMsg").textContent = "Boa sorte! 🍀";
     openModal("slotModal");
   }
 
-  function randomSlotSymbols() {
-    return Array.from({ length: 9 }, () => SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]);
-  }
-
   function renderSlotGrid(symbols, winCells = []) {
     $("#slotGrid").innerHTML = symbols
-      .map((s, i) => `<div class="slot-cell ${winCells.includes(i) ? "win-cell" : ""}" data-i="${i}">${s}</div>`)
+      .map((s, i) => `<div class="slot-cell ${winCells.includes(i) ? "win-cell" : ""}">${s}</div>`)
       .join("");
   }
 
-  function updateSlotBet(delta) {
-    const steps = [0.5, 1, 2, 5, 10, 25, 50];
-    let idx = steps.indexOf(slotBet) + delta;
-    idx = Math.max(0, Math.min(steps.length - 1, idx));
-    slotBet = steps[idx];
-    $("#slotBet").textContent = fmt(slotBet);
+  function stepBet(current, delta) {
+    let idx = BET_STEPS.indexOf(current) + delta;
+    idx = Math.max(0, Math.min(BET_STEPS.length - 1, idx));
+    return BET_STEPS[idx];
   }
-  $("#slotBetMinus").addEventListener("click", () => updateSlotBet(-1));
-  $("#slotBetPlus").addEventListener("click", () => updateSlotBet(1));
 
-  const SLOT_LINES = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // linhas
-    [0, 4, 8], [2, 4, 6],            // diagonais
-  ];
-  const SYMBOL_MULT = { "🐲": 20, "7️⃣": 15, "💎": 10, "⭐": 6, "🔔": 4, "🍀": 3, "🍒": 2 };
+  $("#slotBetMinus").addEventListener("click", () => {
+    slotBetCents = stepBet(slotBetCents, -1);
+    $("#slotBet").textContent = fmt(slotBetCents);
+  });
+  $("#slotBetPlus").addEventListener("click", () => {
+    slotBetCents = stepBet(slotBetCents, 1);
+    $("#slotBet").textContent = fmt(slotBetCents);
+  });
 
-  $("#spinBtn").addEventListener("click", () => {
+  $("#spinBtn").addEventListener("click", async () => {
     if (spinning) return;
-    if (!debit(slotBet)) return;
     spinning = true;
     $("#spinBtn").disabled = true;
     $("#slotMsg").textContent = "Girando… 🎰";
@@ -414,61 +457,59 @@
       });
     }, 90);
 
-    setTimeout(() => {
+    try {
+      // resultado vem do servidor; animação dura ao menos 1,2s
+      const [result] = await Promise.all([
+        api("POST", "/api/games/slot/spin", { betCents: slotBetCents }),
+        new Promise((r) => setTimeout(r, 1200)),
+      ]);
       clearInterval(shuffle);
-      const result = randomSlotSymbols();
-      let winCells = [];
-      let totalMult = 0;
-      for (const line of SLOT_LINES) {
-        const [a, b, c] = line.map((i) => result[i]);
-        if (a === b && b === c) {
-          totalMult += SYMBOL_MULT[a] || 2;
-          winCells.push(...line);
-        }
-      }
-      renderSlotGrid(result, winCells);
-      const win = Math.round(slotBet * totalMult * 100) / 100;
-      if (win > 0) {
-        credit(win);
-        $("#slotMsg").textContent = `🎉 VOCÊ GANHOU R$ ${fmt(win)}!`;
-      } else {
-        $("#slotMsg").textContent = "Quase! Tente de novo 🍀";
-      }
-      addHistory("Fortune Yoshi", slotBet, win);
-      spinning = false;
-      $("#spinBtn").disabled = false;
-    }, 1400);
+      renderSlotGrid(result.grid, result.winCells);
+      setBalance(result.balanceCents);
+      $("#slotMsg").textContent =
+        result.winCents > 0
+          ? `🎉 VOCÊ GANHOU R$ ${fmt(result.winCents)}!`
+          : "Quase! Tente de novo 🍀";
+    } catch (err) {
+      clearInterval(shuffle);
+      $$("#slotGrid .slot-cell").forEach((c) => c.classList.remove("spinning"));
+      $("#slotMsg").textContent = "";
+      toast(err.message);
+      if (/Saldo insuficiente/i.test(err.message)) openModal("depositModal");
+    }
+    spinning = false;
+    $("#spinBtn").disabled = false;
   });
 
   /* ============ MINES ============ */
   const MINES_SIZE = 25;
-  const MINES_BOMBS = 4;
-  let minesBet = 1;
+  let minesBetCents = 100;
   let minesActive = false;
-  let minesBombs = new Set();
   let minesRevealed = new Set();
+  let minesBombsShown = [];
 
-  function minesMultiplier(revealedCount) {
-    // multiplicador cresce a cada gema encontrada (com margem da casa)
-    let m = 1;
-    for (let i = 0; i < revealedCount; i++) {
-      const remainingSafe = MINES_SIZE - MINES_BOMBS - i;
-      const remainingTotal = MINES_SIZE - i;
-      m *= (remainingTotal / remainingSafe) * 0.97;
-    }
-    return m;
-  }
-
-  function openMines() {
+  async function openMines() {
     closeModals();
-    resetMines();
+    resetMinesUI();
     openModal("minesModal");
+    // retoma rodada ativa (ex.: recarregou a página no meio do jogo)
+    try {
+      const { round } = await api("GET", "/api/games/mines/active");
+      if (round) {
+        minesActive = true;
+        minesRevealed = new Set(round.revealed);
+        $("#minesMulti").textContent = `${round.multiplier.toFixed(2)}x`;
+        $("#minesWin").textContent = fmt(round.cashoutCents);
+        $("#minesActionBtn").textContent = "RETIRAR 💰";
+        renderMinesGrid(false);
+      }
+    } catch { /* segue com jogo novo */ }
   }
 
-  function resetMines() {
+  function resetMinesUI() {
     minesActive = false;
-    minesBombs = new Set();
     minesRevealed = new Set();
+    minesBombsShown = [];
     $("#minesMulti").textContent = "1.00x";
     $("#minesWin").textContent = "0,00";
     $("#minesActionBtn").textContent = "COMEÇAR";
@@ -477,92 +518,107 @@
 
   function renderMinesGrid(disabled) {
     $("#minesGrid").innerHTML = Array.from({ length: MINES_SIZE }, (_, i) => {
-      const isRevealed = minesRevealed.has(i);
-      const isBomb = minesBombs.has(i);
+      const revealed = minesRevealed.has(i);
+      const isBomb = minesBombsShown.includes(i);
       let cls = "mine-cell";
       let content = "💎";
-      if (isRevealed) {
+      if (revealed || isBomb) {
         cls += isBomb ? " revealed-bomb" : " revealed-gem";
         content = isBomb ? "💣" : "💎";
       }
-      return `<button class="${cls}" data-cell="${i}" ${disabled || isRevealed ? "disabled" : ""}>${content}</button>`;
+      return `<button class="${cls}" data-cell="${i}" ${disabled || revealed || isBomb ? "disabled" : ""}>${content}</button>`;
     }).join("");
   }
 
-  function updateMinesBet(delta) {
-    const steps = [0.5, 1, 2, 5, 10, 25, 50];
-    let idx = steps.indexOf(minesBet) + delta;
-    idx = Math.max(0, Math.min(steps.length - 1, idx));
-    minesBet = steps[idx];
-    $("#minesBet").textContent = fmt(minesBet);
-  }
-  $("#minesBetMinus").addEventListener("click", () => updateMinesBet(-1));
-  $("#minesBetPlus").addEventListener("click", () => updateMinesBet(1));
+  $("#minesBetMinus").addEventListener("click", () => {
+    minesBetCents = stepBet(minesBetCents, -1);
+    $("#minesBet").textContent = fmt(minesBetCents);
+  });
+  $("#minesBetPlus").addEventListener("click", () => {
+    minesBetCents = stepBet(minesBetCents, 1);
+    $("#minesBet").textContent = fmt(minesBetCents);
+  });
 
-  $("#minesActionBtn").addEventListener("click", () => {
-    if (!minesActive) {
-      if (!debit(minesBet)) return;
-      minesActive = true;
-      minesRevealed = new Set();
-      minesBombs = new Set();
-      while (minesBombs.size < MINES_BOMBS) {
-        minesBombs.add(Math.floor(Math.random() * MINES_SIZE));
+  $("#minesActionBtn").addEventListener("click", async () => {
+    try {
+      if (!minesActive) {
+        const data = await api("POST", "/api/games/mines/start", { betCents: minesBetCents });
+        minesActive = true;
+        minesRevealed = new Set();
+        minesBombsShown = [];
+        setBalance(data.balanceCents);
+        $("#minesActionBtn").textContent = "RETIRAR 💰";
+        renderMinesGrid(false);
+      } else {
+        const data = await api("POST", "/api/games/mines/cashout");
+        setBalance(data.balanceCents);
+        minesBombsShown = data.bombs;
+        renderMinesGrid(true);
+        minesActive = false;
+        $("#minesActionBtn").textContent = "COMEÇAR";
+        toast(`💰 Você retirou R$ ${fmt(data.winCents)} (${data.multiplier.toFixed(2)}x)!`);
       }
-      $("#minesActionBtn").textContent = "RETIRAR 💰";
-      renderMinesGrid(false);
-    } else {
-      // cash out
-      const mult = minesMultiplier(minesRevealed.size);
-      const win = Math.round(minesBet * mult * 100) / 100;
-      credit(win);
-      addHistory("Mines", minesBet, win);
-      toast(`💰 Você retirou R$ ${fmt(win)} (${mult.toFixed(2)}x)!`);
-      // revela as bombas
-      minesBombs.forEach((b) => minesRevealed.add(b));
-      renderMinesGrid(true);
-      minesActive = false;
-      $("#minesActionBtn").textContent = "COMEÇAR";
+    } catch (err) {
+      toast(err.message);
+      if (/Saldo insuficiente/i.test(err.message)) openModal("depositModal");
     }
   });
 
-  $("#minesGrid").addEventListener("click", (e) => {
+  $("#minesGrid").addEventListener("click", async (e) => {
     const cell = e.target.closest("[data-cell]");
-    if (!cell || !minesActive) return;
+    if (!cell || !minesActive || cell.disabled) return;
     const i = Number(cell.dataset.cell);
-    if (minesRevealed.has(i)) return;
-    minesRevealed.add(i);
+    try {
+      const data = await api("POST", "/api/games/mines/reveal", { cell: i });
+      minesRevealed.add(i);
 
-    if (minesBombs.has(i)) {
-      // perdeu
-      minesBombs.forEach((b) => minesRevealed.add(b));
-      renderMinesGrid(true);
-      minesActive = false;
-      addHistory("Mines", minesBet, 0);
-      $("#minesMulti").textContent = "0.00x";
-      $("#minesWin").textContent = "0,00";
-      $("#minesActionBtn").textContent = "COMEÇAR";
-      toast("💥 BOOM! Você perdeu. Tente de novo!");
-      return;
-    }
+      if (data.outcome === "bomb") {
+        minesBombsShown = data.bombs;
+        minesActive = false;
+        setBalance(data.balanceCents);
+        renderMinesGrid(true);
+        $("#minesMulti").textContent = "0.00x";
+        $("#minesWin").textContent = "0,00";
+        $("#minesActionBtn").textContent = "COMEÇAR";
+        toast("💥 BOOM! Você perdeu. Tente de novo!");
+        return;
+      }
 
-    const gems = [...minesRevealed].filter((c) => !minesBombs.has(c)).length;
-    const mult = minesMultiplier(gems);
-    $("#minesMulti").textContent = `${mult.toFixed(2)}x`;
-    $("#minesWin").textContent = fmt(Math.round(minesBet * mult * 100) / 100);
-    renderMinesGrid(false);
+      if (data.outcome === "cashout") {
+        // limpou o campo — o servidor liquidou sozinho
+        minesBombsShown = data.bombs;
+        minesActive = false;
+        setBalance(data.balanceCents);
+        renderMinesGrid(true);
+        $("#minesActionBtn").textContent = "COMEÇAR";
+        toast(`🏆 INCRÍVEL! Limpou o campo e ganhou R$ ${fmt(data.winCents)}!`);
+        return;
+      }
 
-    // ganhou tudo: revelou todas as gemas
-    if (gems === MINES_SIZE - MINES_BOMBS) {
-      const win = Math.round(minesBet * mult * 100) / 100;
-      credit(win);
-      addHistory("Mines", minesBet, win);
-      toast(`🏆 INCRÍVEL! Limpou o campo e ganhou R$ ${fmt(win)}!`);
-      minesActive = false;
-      $("#minesActionBtn").textContent = "COMEÇAR";
+      $("#minesMulti").textContent = `${data.multiplier.toFixed(2)}x`;
+      $("#minesWin").textContent = fmt(data.cashoutCents);
+      renderMinesGrid(false);
+    } catch (err) {
+      toast(err.message);
     }
   });
 
   /* ============ INICIALIZAÇÃO ============ */
-  refreshUI();
-  renderGames();
+  (async () => {
+    try {
+      const data = await api("GET", "/api/games");
+      GAMES = data.games;
+    } catch (err) {
+      toast(err.message);
+    }
+    renderGames();
+    buildWinners();
+
+    if (token) {
+      try {
+        const { user: me } = await api("GET", "/api/auth/me");
+        setLoggedIn(me);
+      } catch { /* token expirado — segue deslogado */ }
+    }
+  })();
 })();

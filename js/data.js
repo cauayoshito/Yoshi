@@ -1,47 +1,7 @@
 /* ============================================================
-   YOSHI BET — Catálogo de jogos (dados demo)
+   YOSHI BET — Constantes de interface
+   (o catálogo de jogos agora vem da API: GET /api/games)
    ============================================================ */
-
-const GAMES = [
-  // Demos jogáveis da casa
-  { id: "fortune-yoshi", name: "Fortune Yoshi", provider: "Yoshi Originals", emoji: "🐲", cats: ["all", "slots", "new"], gradient: "linear-gradient(160deg,#0c5a20,#128a2e)", badge: "demo", playable: "slot" },
-  { id: "mines", name: "Mines", provider: "Yoshi Originals", emoji: "💣", cats: ["all", "crash", "new"], gradient: "linear-gradient(160deg,#232946,#3b3f66)", badge: "demo", playable: "mines" },
-
-  // Slots populares (PG Soft)
-  { id: "fortune-tiger", name: "Fortune Tiger", provider: "PG Soft", emoji: "🐯", cats: ["all", "slots"], gradient: "linear-gradient(160deg,#7a1f04,#c2410c)", badge: "hot" },
-  { id: "fortune-ox", name: "Fortune Ox", provider: "PG Soft", emoji: "🐂", cats: ["all", "slots"], gradient: "linear-gradient(160deg,#7c2d12,#b45309)", badge: "hot" },
-  { id: "fortune-rabbit", name: "Fortune Rabbit", provider: "PG Soft", emoji: "🐰", cats: ["all", "slots"], gradient: "linear-gradient(160deg,#9d174d,#db2777)", badge: "hot" },
-  { id: "fortune-mouse", name: "Fortune Mouse", provider: "PG Soft", emoji: "🐭", cats: ["slots"], gradient: "linear-gradient(160deg,#7f1d1d,#dc2626)" },
-  { id: "fortune-dragon", name: "Fortune Dragon", provider: "PG Soft", emoji: "🐉", cats: ["slots", "new"], gradient: "linear-gradient(160deg,#14532d,#16a34a)", badge: "new" },
-  { id: "lucky-neko", name: "Lucky Neko", provider: "PG Soft", emoji: "🐱", cats: ["slots"], gradient: "linear-gradient(160deg,#581c87,#9333ea)" },
-
-  // Slots Pragmatic
-  { id: "gates-olympus", name: "Gates of Olympus", provider: "Pragmatic Play", emoji: "⚡", cats: ["all", "slots"], gradient: "linear-gradient(160deg,#1e3a8a,#3b82f6)", badge: "hot" },
-  { id: "sweet-bonanza", name: "Sweet Bonanza", provider: "Pragmatic Play", emoji: "🍭", cats: ["all", "slots"], gradient: "linear-gradient(160deg,#be185d,#ec4899)" },
-  { id: "big-bass", name: "Big Bass Bonanza", provider: "Pragmatic Play", emoji: "🎣", cats: ["slots"], gradient: "linear-gradient(160deg,#155e75,#0891b2)" },
-  { id: "starlight-princess", name: "Starlight Princess", provider: "Pragmatic Play", emoji: "👸", cats: ["slots"], gradient: "linear-gradient(160deg,#6b21a8,#c026d3)" },
-  { id: "wolf-gold", name: "Wolf Gold", provider: "Pragmatic Play", emoji: "🐺", cats: ["slots"], gradient: "linear-gradient(160deg,#78350f,#d97706)" },
-
-  // Crash / instantâneos
-  { id: "aviator", name: "Aviator", provider: "Spribe", emoji: "✈️", cats: ["all", "crash"], gradient: "linear-gradient(160deg,#450a0a,#dc2626)", badge: "hot" },
-  { id: "spaceman", name: "Spaceman", provider: "Pragmatic Play", emoji: "🧑‍🚀", cats: ["all", "crash"], gradient: "linear-gradient(160deg,#1e1b4b,#4f46e5)" },
-  { id: "jetx", name: "JetX", provider: "SmartSoft", emoji: "🚀", cats: ["crash"], gradient: "linear-gradient(160deg,#0c4a6e,#0284c7)" },
-  { id: "plinko", name: "Plinko", provider: "Spribe", emoji: "🔻", cats: ["crash"], gradient: "linear-gradient(160deg,#134e4a,#0d9488)" },
-  { id: "penalty", name: "Penalty Shoot-Out", provider: "Evoplay", emoji: "⚽", cats: ["crash", "new"], gradient: "linear-gradient(160deg,#14532d,#22c55e)", badge: "new" },
-
-  // Ao vivo
-  { id: "roleta-brasileira", name: "Roleta Brasileira", provider: "Evolution", emoji: "🎡", cats: ["all", "live"], gradient: "linear-gradient(160deg,#166534,#facc15)", badge: "hot" },
-  { id: "crazy-time", name: "Crazy Time", provider: "Evolution", emoji: "🎪", cats: ["all", "live"], gradient: "linear-gradient(160deg,#831843,#f472b6)" },
-  { id: "bac-bo", name: "Bac Bo", provider: "Evolution", emoji: "🎲", cats: ["live"], gradient: "linear-gradient(160deg,#7f1d1d,#f87171)" },
-  { id: "football-studio", name: "Football Studio", provider: "Evolution", emoji: "🏟️", cats: ["live"], gradient: "linear-gradient(160deg,#14532d,#4ade80)" },
-  { id: "mega-wheel", name: "Mega Wheel", provider: "Pragmatic Play", emoji: "🛞", cats: ["live"], gradient: "linear-gradient(160deg,#701a75,#e879f9)" },
-
-  // Mesa
-  { id: "blackjack", name: "Blackjack Clássico", provider: "Evolution", emoji: "🃏", cats: ["table"], gradient: "linear-gradient(160deg,#052e16,#15803d)" },
-  { id: "dragon-tiger", name: "Dragon Tiger", provider: "Ezugi", emoji: "🐉", cats: ["table"], gradient: "linear-gradient(160deg,#7c2d12,#ea580c)" },
-  { id: "poker-brasileiro", name: "Poker Brasileiro", provider: "Ezugi", emoji: "♠️", cats: ["table", "new"], gradient: "linear-gradient(160deg,#1c1917,#57534e)", badge: "new" },
-  { id: "baccarat", name: "Baccarat", provider: "Evolution", emoji: "🎴", cats: ["table"], gradient: "linear-gradient(160deg,#4a044e,#a21caf)" },
-];
 
 const CAT_TITLES = {
   all: "🔥 Jogos Populares",
@@ -57,4 +17,5 @@ const WINNER_NAMES = [
   "Carlos M.", "Fernanda L.", "Rafael T.", "Beatriz O.", "Gustavo A.", "Camila D.",
 ];
 
+/* Símbolos usados só na animação do slot — o resultado real vem do servidor */
 const SLOT_SYMBOLS = ["🐲", "💎", "🍀", "🔔", "🍒", "⭐", "7️⃣"];

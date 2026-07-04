@@ -1,54 +1,94 @@
-# 🐲 YOSHI BET — Plataforma iGaming (Demo Front-end)
+# 🐲 YOSHI BET — Plataforma iGaming (Full-Stack)
 
 Plataforma de cassino online no estilo das grandes casas brasileiras (tema escuro,
-verde neon + dourado, depósito via PIX, bônus de boas-vindas), construída 100% com
-HTML, CSS e JavaScript puros — sem dependências, roda em qualquer hospedagem estática.
+verde neon + dourado, PIX, bônus de boas-vindas), com **front-end** em HTML/CSS/JS
+puros e **backend** Node.js + Express + SQLite com autenticação JWT, carteira
+transacional e jogos rodando no servidor.
 
 > ⚠️ **Projeto demonstrativo.** Nenhuma aposta com dinheiro real é realizada.
-> Saldo, contas e histórico são simulados no `localStorage` do navegador.
-
-## ✨ Funcionalidades
-
-- **Home** com carrossel de banners promocionais, busca e categorias (Populares, Slots, Crash, Ao Vivo, Mesa, Novos)
-- **Catálogo com 27 jogos** dos provedores mais famosos do mercado BR (PG Soft, Pragmatic Play, Evolution, Spribe…)
-- **2 jogos demo jogáveis:**
-  - 🐲 **Fortune Yoshi** — slot 3×3 com 5 linhas de pagamento e multiplicadores por símbolo
-  - 💣 **Mines** — campo 5×5 com 4 bombas, multiplicador progressivo e botão de retirada
-- **Cadastro e login** (demo, localStorage)
-- **Depósito via PIX** simulado: QR code, código copia-e-cola e confirmação automática com bônus de 100%
-- **Carteira** com saldo, saque simulado e histórico das últimas 30 jogadas
-- **Ticker de ganhos ao vivo**, página de promoções, rodapé com selos 18+/PIX/SSL
-- **Totalmente responsivo** com bottom-nav mobile no estilo app
+> O PIX é simulado (payload EMV real, pagamento auto-confirmado).
 
 ## 🚀 Como rodar
 
-É um site estático — basta abrir o `index.html` ou servir a pasta:
+```bash
+cd server
+npm install
+npm start
+# abra http://localhost:3000
+```
+
+Testes do backend (15 casos, sem dependência extra — `node:test`):
 
 ```bash
-# opção 1: abrir direto
-open index.html
-
-# opção 2: servidor local
-python3 -m http.server 8000
-# acesse http://localhost:8000
+cd server && npm test
 ```
 
-Para publicar: GitHub Pages, Vercel, Netlify ou qualquer hospedagem estática.
-
-## 📁 Estrutura
+## 🏗️ Arquitetura
 
 ```
-├── index.html      # Estrutura: header, views, modais, jogos
-├── css/style.css   # Tema escuro completo + responsivo
-└── js/
-    ├── data.js     # Catálogo de jogos e constantes
-    └── app.js      # Navegação, auth, carteira, PIX, slot e mines
+├── index.html            # SPA: views, modais, jogos
+├── css/style.css         # Tema escuro completo + responsivo
+├── js/
+│   ├── data.js           # Constantes de UI
+│   └── app.js            # Cliente da API + animações
+└── server/
+    ├── src/
+    │   ├── index.js      # Bootstrap HTTP
+    │   ├── app.js        # Express: rotas, rate-limit, estáticos
+    │   ├── config.js     # Config via .env (veja .env.example)
+    │   ├── db.js         # SQLite (better-sqlite3) + schema
+    │   ├── middleware/   # JWT (auth.js) e erros (error.js)
+    │   ├── routes/       # auth, wallet, games
+    │   ├── services/     # wallet, pix, slot, mines
+    │   └── data/games.json  # Catálogo servido em /api/games
+    └── test/api.test.js  # Suíte de integração da API
 ```
 
-## 🔜 Próximos passos (para virar produção de verdade)
+### Decisões de projeto
 
-- Backend real (auth com JWT, carteira transacional, RNG auditado)
-- Integração com agregadores de jogos licenciados
-- Gateway de pagamento PIX real (ex.: provedores autorizados pelo BACEN)
-- KYC/verificação de idade e ferramentas de jogo responsável
-- Licenciamento junto à SPA/Ministério da Fazenda (apostas de quota fixa)
+- **Dinheiro em centavos (INTEGER)** — nada de float para valores monetários.
+- **Livro-razão (`transactions`)** — todo crédito/débito vira lançamento; o saldo
+  é atualizado na mesma transação SQLite com `CHECK (balance_cents >= 0)`,
+  impossibilitando saldo negativo mesmo com requisições concorrentes.
+- **RNG no servidor** — o resultado do slot e as bombas do Mines nunca existem
+  no cliente. `crypto.randomInt` (CSPRNG do Node).
+- **Provably fair** — cada rodada tem `server_seed`; o SHA-256 dele é entregue
+  ao jogador no início e o seed é revelado no fim.
+- **PIX real no formato** — o payload copia-e-cola segue o padrão EMV do BACEN,
+  gerado com a lib open-source [`pix-utils`](https://github.com/thalesog/pix-utils).
+  A confirmação é simulada (em produção viria do webhook do PSP).
+- **Bônus de 1º depósito** — 100% até R$ 500, idempotente (webhook duplicado
+  não credita duas vezes).
+
+## 📡 API
+
+Autenticação: `Authorization: Bearer <token>` (JWT, 7 dias).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/health` | Status do serviço |
+| POST | `/api/auth/register` | Cria conta `{name,email,password}` → token |
+| POST | `/api/auth/login` | Login `{email,password}` → token |
+| GET | `/api/auth/me` | Usuário logado + saldo |
+| GET | `/api/wallet` | Saldo + extrato (últimos 30 lançamentos) |
+| POST | `/api/wallet/deposit` | Cria cobrança PIX `{amountCents}` → txid + BR Code |
+| GET | `/api/wallet/deposit/:txid` | Status da cobrança (front faz polling) |
+| POST | `/api/wallet/deposit/:txid/webhook` | Confirmação do PSP (demo) |
+| POST | `/api/wallet/withdraw` | Saque `{amountCents,pixKey}` |
+| GET | `/api/games` | Catálogo de jogos |
+| POST | `/api/games/slot/spin` | Gira o Fortune Yoshi `{betCents}` |
+| GET | `/api/games/mines/active` | Rodada ativa do Mines (retomada) |
+| POST | `/api/games/mines/start` | Inicia Mines `{betCents}` |
+| POST | `/api/games/mines/reveal` | Revela célula `{cell}` |
+| POST | `/api/games/mines/cashout` | Retira o ganho acumulado |
+| GET | `/api/games/history` | Últimas 30 rodadas liquidadas |
+
+Limites (config via `.env`): depósito R$ 20–10.000 · aposta R$ 0,50–50 · saque mín. R$ 20.
+
+## 🔜 Próximos passos (para produção de verdade)
+
+- Postgres no lugar do SQLite + migrações versionadas
+- Gateway PIX real (PSP autorizado pelo BACEN) com webhook assinado
+- Integração com agregadores de jogos licenciados (a estrutura de rounds já suporta)
+- KYC/verificação de idade, limites de jogo responsável e autoexclusão
+- Licenciamento SPA/Ministério da Fazenda (apostas de quota fixa)
