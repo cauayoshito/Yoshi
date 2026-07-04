@@ -65,4 +65,19 @@ db.exec(`
     settled_at   TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_rounds_user ON rounds(user_id, id DESC);
+
+  -- Apostas esportivas (Copa 2026)
+  CREATE TABLE IF NOT EXISTS sport_bets (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id             INTEGER NOT NULL REFERENCES users(id),
+    match_id            TEXT NOT NULL,
+    pick                TEXT NOT NULL CHECK (pick IN ('home','draw','away')),
+    odds                REAL NOT NULL,
+    stake_cents         INTEGER NOT NULL,
+    potential_win_cents INTEGER NOT NULL,
+    status              TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','won','lost','void')),
+    created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+    settled_at          TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_sport_bets_user ON sport_bets(user_id, id DESC);
 `);

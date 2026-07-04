@@ -52,6 +52,20 @@
     toastTimer = setTimeout(() => el.classList.add("hidden"), 3400);
   }
 
+  /* ============ HELPERS DE UI ============ */
+  function btnLoading(btn, on) {
+    btn.classList.toggle("loading", on);
+    btn.disabled = on;
+  }
+
+  $$(".pw-eye").forEach((eye) =>
+    eye.addEventListener("click", () => {
+      const input = eye.previousElementSibling;
+      input.type = input.type === "password" ? "text" : "password";
+      eye.textContent = input.type === "password" ? "👁" : "🙈";
+    })
+  );
+
   /* ============ SESSÃO / SALDO ============ */
   function setBalance(cents) {
     if (typeof cents !== "number") return;
@@ -191,6 +205,8 @@
   /* ============ LOGIN / CADASTRO ============ */
   $("#registerForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const submitBtn = e.target.querySelector("button[type=submit]");
+    btnLoading(submitBtn, true);
     try {
       const data = await api("POST", "/api/auth/register", {
         name: $("#regName").value.trim(),
@@ -204,10 +220,13 @@
     } catch (err) {
       toast(err.message);
     }
+    btnLoading(submitBtn, false);
   });
 
   $("#loginForm").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const submitBtn = e.target.querySelector("button[type=submit]");
+    btnLoading(submitBtn, true);
     try {
       const data = await api("POST", "/api/auth/login", {
         email: $("#loginEmail").value.trim(),
@@ -219,6 +238,7 @@
     } catch (err) {
       toast(err.message);
     }
+    btnLoading(submitBtn, false);
   });
 
   $("#logoutBtn").addEventListener("click", () => {
@@ -280,13 +300,17 @@
 
   $("#generatePixBtn").addEventListener("click", async () => {
     if (depositValue < 20) return void toast("Depósito mínimo: R$ 20");
+    const genBtn = $("#generatePixBtn");
+    btnLoading(genBtn, true);
     try {
-      $("#generatePixBtn").disabled = true;
       const charge = await api("POST", "/api/wallet/deposit", {
         amountCents: Math.round(depositValue * 100),
       });
       $("#pixCode").value = charge.brcode;
+      $("#pixQrImg").src = charge.qrDataUrl;
       $("#pixArea").classList.remove("hidden");
+      btnLoading(genBtn, false);
+      genBtn.disabled = true;
 
       pixPollTimer = setInterval(async () => {
         try {
@@ -300,7 +324,7 @@
         } catch { /* tenta de novo no próximo tick */ }
       }, 1500);
     } catch (err) {
-      $("#generatePixBtn").disabled = false;
+      btnLoading(genBtn, false);
       toast(err.message);
     }
   });
@@ -433,7 +457,33 @@
   $("#gameModalDemoBtn").addEventListener("click", openSlot);
 
   /* ============ HISTÓRICO ============ */
+  async function loadSportBets() {
+    try {
+      const data = await api("GET", "/api/sports/bets");
+      const list = $("#sportBetsList");
+      if (!data.bets.length) {
+        list.innerHTML = '<p class="muted">Nenhuma aposta ainda. Confira a Copa 2026! ⚽</p>';
+        return;
+      }
+      const statusChip = {
+        pending: '<span class="chip-status chip-pending">Em aberto</span>',
+        won: '<span class="chip-status chip-won">Ganhou</span>',
+        lost: '<span class="chip-status chip-lost">Perdeu</span>',
+        void: '<span class="chip-status">Anulada</span>',
+      };
+      list.innerHTML = data.bets
+        .map(
+          (b) => `<div class="history-item">
+            <span>${b.match ? `${b.match.home.name} x ${b.match.away.name}` : b.match_id} · <strong>${b.pickLabel}</strong> @ ${b.odds.toFixed(2)} · R$ ${fmt(b.stake_cents)}</span>
+            <span>${statusChip[b.status] || b.status} <strong class="hl-green">R$ ${fmt(b.potential_win_cents)}</strong></span>
+          </div>`
+        )
+        .join("");
+    } catch { /* silencioso */ }
+  }
+
   async function loadHistory() {
+    loadSportBets();
     try {
       const data = await api("GET", "/api/games/history");
       const list = $("#historyList");
@@ -527,17 +577,37 @@
   setInterval(pushLiveBet, 2800);
 
 
-  /* ============ COPA 2026 (apostas esportivas demo) ============ */
+  /* ============ COPA 2026 (apostas via API) ============ */
+  let MATCHES = [];
+  let slipSelection = null; // { matchId, pick, odds, pickLabel, matchName }
+
+  const fmtKickoff = (iso) => {
+    const d = new Date(iso);
+    const day = d.toLocaleDateString("pt-BR", {
+      weekday: "short", day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo",
+    });
+    const time = d.toLocaleTimeString("pt-BR", {
+      hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo",
+    });
+    return { day: day.replace(".", "").replace(/^./, (c) => c.toUpperCase()), time };
+  };
+
   function matchCardHTML(m, compact = false) {
-    const liveBadge = m.live ? '<span class="live-badge"><span class="pulse-dot"></span> AO VIVO</span>' : "";
+    const k = fmtKickoff(m.kickoff);
+    const liveBadge =
+      m.status === "live"
+        ? '<span class="live-badge"><span class="pulse-dot"></span> AO VIVO</span>'
+        : `<span class="match-venue">${m.venue}</span>`;
+    const pickName = { home: m.home.name, draw: "Empate", away: m.away.name };
     const oddBtn = (label, key) =>
-      `<button class="odd" data-odd="${key}" data-match="${m.home.name} x ${m.away.name}">
+      `<button class="odd" data-match-id="${m.id}" data-pick="${key}" data-odds="${m.odds[key]}"
+        data-pick-label="${pickName[key]}" data-match-name="${m.home.name} x ${m.away.name}">
         <span>${label}</span><strong>${m.odds[key].toFixed(2)}</strong>
       </button>`;
     return `<div class="match-card ${m.featured ? "match-featured" : ""} ${compact ? "match-compact" : ""}">
       <div class="match-meta">
-        <span>${m.day} · ${m.time}</span>
-        ${liveBadge || `<span class="match-venue">${m.venue}</span>`}
+        <span>${k.day} · ${k.time}</span>
+        ${liveBadge}
       </div>
       <div class="match-teams">
         <div class="team">${icon(m.home.flag, "flag")}<span>${m.home.name}</span></div>
@@ -554,8 +624,15 @@
 
   function renderSports() {
     const container = $("#matchesContainer");
+    if (!MATCHES.length) {
+      container.innerHTML = '<p class="muted">Carregando partidas…</p>';
+      return;
+    }
     const byDay = {};
-    WC_MATCHES.forEach((m) => (byDay[m.day] ||= []).push(m));
+    MATCHES.forEach((m) => {
+      const day = fmtKickoff(m.kickoff).day;
+      (byDay[day] ||= []).push(m);
+    });
     container.innerHTML = Object.entries(byDay)
       .map(
         ([day, matches]) => `<div class="match-day">
@@ -567,7 +644,12 @@
   }
 
   function renderSportsPreview() {
-    const picks = [WC_MATCHES[0], WC_MATCHES[2], WC_MATCHES[3]];
+    if (!MATCHES.length) return void ($("#sportsPreview").innerHTML = "");
+    const picks = [
+      ...MATCHES.filter((m) => m.status === "live"),
+      ...MATCHES.filter((m) => m.featured && m.status !== "live"),
+      ...MATCHES.filter((m) => !m.featured && m.status === "upcoming"),
+    ].slice(0, 3);
     $("#sportsPreview").innerHTML = `
       <div class="row-head">
         <h3>${icon("⚽")} Copa 2026 · Oitavas</h3>
@@ -580,17 +662,73 @@
       </div>`;
   }
 
-  // Seleção de odds (demo)
+  /* ---- Cupom de aposta ---- */
+  function openSlip(sel) {
+    slipSelection = sel;
+    $("#bsMatch").textContent = sel.matchName;
+    $("#bsPick").textContent = sel.pickLabel;
+    $("#bsOdds").textContent = sel.odds.toFixed(2);
+    updateSlipReturn();
+    $("#betSlip").classList.remove("hidden");
+  }
+
+  function closeSlip() {
+    slipSelection = null;
+    $("#betSlip").classList.add("hidden");
+    $$(".odd.active").forEach((o) => o.classList.remove("active"));
+  }
+
+  function updateSlipReturn() {
+    if (!slipSelection) return;
+    const stake = Number($("#bsStake").value) || 0;
+    $("#bsReturn").textContent = `R$ ${fmt(Math.floor(stake * 100 * slipSelection.odds))}`;
+    $("#bsSubmit").textContent = stake > 0 ? `Apostar R$ ${fmt(stake * 100)}` : "Fazer aposta";
+  }
+
+  $("#bsStake").addEventListener("input", updateSlipReturn);
+  $("#bsClose").addEventListener("click", closeSlip);
+  $$(".bs-quick button").forEach((b) =>
+    b.addEventListener("click", () => {
+      $("#bsStake").value = b.dataset.stake;
+      updateSlipReturn();
+    })
+  );
+
+  $("#bsSubmit").addEventListener("click", async () => {
+    if (!slipSelection) return;
+    const stakeCents = Math.round(Number($("#bsStake").value) * 100);
+    if (!stakeCents || stakeCents <= 0) return void toast("Informe o valor da aposta");
+    btnLoading($("#bsSubmit"), true);
+    try {
+      const data = await api("POST", "/api/sports/bet", {
+        matchId: slipSelection.matchId,
+        pick: slipSelection.pick,
+        stakeCents,
+      });
+      setBalance(data.balanceCents);
+      toast(`✅ Aposta feita: ${data.bet.pickLabel} @ ${data.bet.odds.toFixed(2)} · retorno potencial R$ ${fmt(data.bet.potential_win_cents)}`);
+      closeSlip();
+    } catch (err) {
+      toast(err.message);
+      if (/Saldo insuficiente/i.test(err.message)) openModal("depositModal");
+    }
+    btnLoading($("#bsSubmit"), false);
+  });
+
+  // Seleção de odds abre o cupom
   document.addEventListener("click", (e) => {
     const odd = e.target.closest(".odd");
     if (!odd) return;
     if (!requireLogin()) return;
-    const wasActive = odd.classList.contains("active");
-    odd.closest(".match-odds").querySelectorAll(".odd").forEach((o) => o.classList.remove("active"));
-    if (!wasActive) {
-      odd.classList.add("active");
-      toast(`⚽ Seleção adicionada: ${odd.dataset.match} @ ${odd.querySelector("strong").textContent} (demo)`);
-    }
+    $$(".odd.active").forEach((o) => o.classList.remove("active"));
+    odd.classList.add("active");
+    openSlip({
+      matchId: odd.dataset.matchId,
+      pick: odd.dataset.pick,
+      odds: Number(odd.dataset.odds),
+      pickLabel: odd.dataset.pickLabel,
+      matchName: odd.dataset.matchName,
+    });
   });
 
   /* ============ SLOT: FORTUNE YOSHI ============ */
@@ -787,16 +925,21 @@
     renderRows(); // skeletons
     seedLiveBets();
     renderSports();
-    renderSportsPreview();
 
     try {
-      const data = await api("GET", "/api/games");
-      GAMES = data.games;
+      const [gamesData, matchesData] = await Promise.all([
+        api("GET", "/api/games"),
+        api("GET", "/api/sports/matches"),
+      ]);
+      GAMES = gamesData.games;
+      MATCHES = matchesData.matches;
     } catch (err) {
       toast(err.message);
     }
     renderRows();
     seedLiveBets();
+    renderSports();
+    renderSportsPreview();
 
     if (token) {
       try {

@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import QRCode from "qrcode";
 import { createStaticPix, hasError } from "pix-utils";
 import { db } from "../db.js";
 import { config } from "../config.js";
@@ -22,7 +23,7 @@ function buildBrCode(amountCents, txid) {
   return pix.toBRCode();
 }
 
-export function createCharge(userId, amountCents) {
+export async function createCharge(userId, amountCents) {
   if (!Number.isInteger(amountCents) || amountCents < config.limits.minDepositCents) {
     throw new ApiError(400, `Depósito mínimo: R$ ${(config.limits.minDepositCents / 100).toFixed(2)}`);
   }
@@ -43,7 +44,14 @@ export function createCharge(userId, amountCents) {
     }, config.pix.demoAutoconfirmMs).unref();
   }
 
-  return { txid, brcode, amountCents, status: "pending" };
+  // QR Code real e escaneável, gerado a partir do payload EMV
+  const qrDataUrl = await QRCode.toDataURL(brcode, {
+    margin: 1,
+    width: 340,
+    color: { dark: "#0d0f14", light: "#ffffff" },
+  });
+
+  return { txid, brcode, qrDataUrl, amountCents, status: "pending" };
 }
 
 /** Confirma a cobrança e credita saldo + bônus de primeiro depósito. Idempotente. */

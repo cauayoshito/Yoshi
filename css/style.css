@@ -1277,6 +1277,166 @@ body {
 /* Preview da Copa na home (cards compactos no carrossel) */
 .match-preview-track .match-card { flex: 0 0 330px; scroll-snap-align: start; }
 
+/* ============ MARCA ============ */
+.logo-mark { flex-shrink: 0; filter: drop-shadow(0 0 12px rgba(0, 232, 128, 0.35)); }
+
+/* ============ CUPOM DE APOSTA ============ */
+.bet-slip {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 150;
+  width: 330px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-xl);
+  padding: 20px;
+  box-shadow: var(--shadow-2), 0 0 0 1px rgba(0, 232, 128, 0.15);
+  animation: modalIn 0.3s var(--ease);
+}
+.bs-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  font-size: 0.95rem;
+}
+.bs-close { position: static; }
+.bs-match { font-size: 0.8rem; color: var(--text-2); font-weight: 600; margin-bottom: 8px; }
+.bs-pick {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--green-soft);
+  border: 1px solid rgba(0, 232, 128, 0.4);
+  border-radius: var(--r-md);
+  padding: 11px 14px;
+  margin-bottom: 14px;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+.bs-pick strong { color: var(--gold); }
+.bs-stake-label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-2);
+  margin-bottom: 10px;
+}
+.bs-stake-label input {
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 11px 14px;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 800;
+  font-family: inherit;
+  outline: none;
+}
+.bs-stake-label input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(0, 232, 128, 0.12); }
+.bs-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }
+.bs-quick button {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  border-radius: var(--r-sm);
+  padding: 8px 4px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.bs-quick button:hover { border-color: var(--green); color: var(--green); }
+.bs-return {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--text-2);
+  font-weight: 600;
+  margin-bottom: 14px;
+}
+.bs-return strong { color: var(--green); font-size: 0.95rem; }
+
+/* ============ SPINNER EM BOTÕES ============ */
+.btn.loading {
+  color: transparent !important;
+  pointer-events: none;
+  position: relative;
+}
+.btn.loading::after {
+  content: "";
+  position: absolute;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(0, 0, 0, 0.25);
+  border-top-color: rgba(0, 0, 0, 0.8);
+  animation: spin 0.7s linear infinite;
+}
+.btn-ghost.loading::after { border-color: rgba(255,255,255,0.2); border-top-color: var(--text); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============ SENHA: MOSTRAR/OCULTAR ============ */
+.pw-wrap { position: relative; display: flex; }
+.pw-wrap input { flex: 1; padding-right: 44px !important; }
+.pw-eye {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: var(--r-sm);
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.pw-eye:hover { opacity: 1; }
+
+/* ============ CHIPS DE STATUS ============ */
+.chip-status {
+  font-size: 0.64rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  letter-spacing: 0.4px;
+  margin-right: 6px;
+}
+.chip-pending { background: var(--gold-soft); color: var(--gold); }
+.chip-won { background: var(--green-soft); color: var(--green); }
+.chip-lost { background: rgba(255, 77, 94, 0.14); color: var(--red); }
+
+/* ============ QR PIX REAL ============ */
+.pix-qr {
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.pix-qr img { width: 100%; height: 100%; display: block; }
+
+/* ============ BRILHO NOS CARDS ============ */
+.game-art::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(105deg, transparent 42%, rgba(255, 255, 255, 0.16) 50%, transparent 58%);
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+.game-card:hover .game-art::before { animation: shine 0.75s var(--ease); }
+@keyframes shine { to { transform: translateX(130%); } }
+
 /* ============ RESPONSIVO ============ */
 @media (max-width: 1080px) {
   .sidebar {
@@ -1327,6 +1487,14 @@ body {
   .hide-sm { display: none; }
   .match-list { grid-template-columns: 1fr; }
   .match-preview-track .match-card { flex: 0 0 292px; }
+  .bet-slip {
+    right: 0;
+    left: 0;
+    bottom: 66px;
+    width: auto;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    border-bottom: none;
+  }
   .sports-hero { padding: 22px 20px; }
   .sports-hero h2 { font-size: 1.4rem; }
   .sports-hero-art { width: 64px; height: 64px; }

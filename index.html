@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>YOSHI BET — Cassino Online | Slots, Crash e Ao Vivo</title>
   <meta name="description" content="YOSHI BET — a melhor plataforma de jogos do Brasil. Slots, jogos crash, cassino ao vivo, depósito via PIX e bônus de boas-vindas de 100%." />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%B2%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='2' y='2' width='44' height='44' rx='13' fill='%2300e880'/%3E%3Cpath d='M15 14l9 12v9M33 14l-9 12' stroke='%2304150c' stroke-width='5.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='37.5' cy='11.5' r='3' fill='%23ffb800'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -57,8 +57,17 @@
         <button class="icon-btn menu-btn" id="menuBtn" aria-label="Menu">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
         </button>
-        <a class="logo" href="#" data-view="home">
-          <span class="logo-icon">🐲</span>
+        <a class="logo" href="#" data-view="home" aria-label="YOSHI BET">
+          <svg class="logo-mark" width="34" height="34" viewBox="0 0 48 48" aria-hidden="true">
+            <defs>
+              <linearGradient id="lgMark" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#00e880"/><stop offset="1" stop-color="#009459"/>
+              </linearGradient>
+            </defs>
+            <rect x="2" y="2" width="44" height="44" rx="13" fill="url(#lgMark)"/>
+            <path d="M15 14l9 12v9M33 14l-9 12" stroke="#04150c" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="37.5" cy="11.5" r="3" fill="#ffb800"/>
+          </svg>
           <span class="logo-text">YOSHI<em>BET</em></span>
         </a>
 
@@ -255,7 +264,11 @@
             <button class="btn btn-ghost btn-danger" id="logoutBtn">Sair da conta</button>
           </div>
           <div class="profile-card profile-card-wide">
-            <span class="pc-label">Histórico recente</span>
+            <span class="pc-label">Apostas esportivas</span>
+            <div id="sportBetsList" class="history-list" style="margin-bottom:18px">
+              <p class="muted">Nenhuma aposta ainda. Confira a Copa 2026! ⚽</p>
+            </div>
+            <span class="pc-label">Histórico do cassino</span>
             <div id="historyList" class="history-list">
               <p class="muted">Nenhuma jogada ainda. Bora jogar? 🎰</p>
             </div>
@@ -267,7 +280,7 @@
       <footer class="footer">
         <div class="footer-inner">
           <div class="footer-col">
-            <div class="logo"><span class="logo-icon">🐲</span><span class="logo-text">YOSHI<em>BET</em></span></div>
+            <div class="logo"><svg class="logo-mark" width="30" height="30" viewBox="0 0 48 48" aria-hidden="true"><rect x="2" y="2" width="44" height="44" rx="13" fill="url(#lgMark)"/><path d="M15 14l9 12v9M33 14l-9 12" stroke="#04150c" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="37.5" cy="11.5" r="3" fill="#ffb800"/></svg><span class="logo-text">YOSHI<em>BET</em></span></div>
             <p class="muted">A plataforma de jogos mais divertida do Brasil. Jogue com responsabilidade.</p>
             <div class="footer-badges">
               <span class="badge-18">18+</span>
@@ -322,7 +335,7 @@
     <h2>Bem-vindo de volta 👋</h2>
     <form id="loginForm" class="form">
       <label>E-mail<input type="email" id="loginEmail" required placeholder="seu@email.com" /></label>
-      <label>Senha<input type="password" id="loginPass" required placeholder="••••••••" minlength="4" /></label>
+      <label>Senha<span class="pw-wrap"><input type="password" id="loginPass" required placeholder="••••••••" minlength="4" /><button type="button" class="pw-eye" aria-label="Mostrar senha">👁</button></span></label>
       <button type="submit" class="btn btn-primary btn-block">Entrar</button>
     </form>
     <p class="modal-foot">Não tem conta? <a href="#" data-switch="registerModal">Cadastre-se grátis</a></p>
@@ -338,7 +351,7 @@
     <form id="registerForm" class="form">
       <label>Nome de usuário<input type="text" id="regName" required placeholder="seunome" minlength="3" /></label>
       <label>E-mail<input type="email" id="regEmail" required placeholder="seu@email.com" /></label>
-      <label>Senha<input type="password" id="regPass" required placeholder="mínimo 4 caracteres" minlength="4" /></label>
+      <label>Senha<span class="pw-wrap"><input type="password" id="regPass" required placeholder="mínimo 4 caracteres" minlength="4" /><button type="button" class="pw-eye" aria-label="Mostrar senha">👁</button></span></label>
       <label class="checkline"><input type="checkbox" required /> Tenho mais de 18 anos e aceito os Termos</label>
       <button type="submit" class="btn btn-primary btn-block">Criar conta</button>
     </form>
@@ -365,7 +378,7 @@
     <div class="bonus-note" id="bonusNote">🎁 Primeiro depósito ganha <strong>+R$ 50,00 de bônus</strong> (100%)</div>
     <button class="btn btn-deposit btn-block" id="generatePixBtn">Gerar PIX</button>
     <div class="pix-area hidden" id="pixArea">
-      <div class="pix-qr" id="pixQr"></div>
+      <div class="pix-qr" id="pixQr"><img id="pixQrImg" alt="QR Code PIX" /></div>
       <div class="pix-code-row">
         <input type="text" id="pixCode" readonly />
         <button class="btn btn-ghost" id="copyPixBtn">Copiar</button>
@@ -430,6 +443,30 @@
       <button class="btn btn-primary" id="gameModalDemoBtn">Jogar Fortune Yoshi</button>
     </div>
   </div>
+</div>
+
+<!-- Cupom de aposta -->
+<div class="bet-slip hidden" id="betSlip">
+  <div class="bs-head">
+    <strong>🎫 Cupom de aposta</strong>
+    <button class="modal-close bs-close" id="bsClose" aria-label="Fechar">&times;</button>
+  </div>
+  <div class="bs-match" id="bsMatch"></div>
+  <div class="bs-pick">
+    <span id="bsPick"></span>
+    <strong id="bsOdds"></strong>
+  </div>
+  <label class="bs-stake-label">Valor da aposta
+    <input type="number" id="bsStake" value="10" min="0.5" step="0.5" />
+  </label>
+  <div class="bs-quick">
+    <button data-stake="10">R$ 10</button>
+    <button data-stake="25">R$ 25</button>
+    <button data-stake="50">R$ 50</button>
+    <button data-stake="100">R$ 100</button>
+  </div>
+  <div class="bs-return">Retorno potencial <strong id="bsReturn">R$ 0,00</strong></div>
+  <button class="btn btn-primary btn-block" id="bsSubmit">Fazer aposta</button>
 </div>
 
 <!-- Toast -->

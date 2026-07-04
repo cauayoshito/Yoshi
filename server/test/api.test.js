@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 
 // Banco isolado e webhook demo desligado (confirmamos manualmente no teste)
+process.env.NODE_ENV = "test";
 process.env.DB_PATH = "data/test.db";
 process.env.PIX_DEMO_AUTOCONFIRM_MS = "0";
 process.env.JWT_SECRET = "segredo-de-teste";
@@ -78,12 +79,13 @@ test("apostar sem saldo é bloqueado", async () => {
 
 let txid;
 
-test("depósito gera cobrança PIX com BR Code válido", async () => {
+test("depósito gera cobrança PIX com BR Code válido e QR escaneável", async () => {
   const r = await api("POST", "/api/wallet/deposit", { amountCents: 5000 });
   assert.equal(r.status, 201);
   assert.equal(r.body.status, "pending");
   assert.ok(r.body.brcode.startsWith("000201"), "payload EMV começa com 000201");
   assert.ok(r.body.brcode.toUpperCase().includes("BR.GOV.BCB.PIX"));
+  assert.ok(r.body.qrDataUrl.startsWith("data:image/png;base64,"), "QR code real em data URL");
   txid = r.body.txid;
 });
 
@@ -170,6 +172,42 @@ test("saque acima do saldo é recusado", async () => {
 test("histórico registra as rodadas liquidadas", async () => {
   const r = await api("GET", "/api/games/history");
   assert.ok(r.body.rounds.length >= 2); // slot + mines
+});
+
+test("esportes: lista partidas com status calculado", async () => {
+  const r = await api("GET", "/api/sports/matches");
+  assert.equal(r.status, 200);
+  assert.equal(r.body.matches.length, 8);
+  assert.ok(r.body.matches.every((m) => ["upcoming", "live", "finished"].includes(m.status)));
+});
+
+test("esportes: aposta debita carteira e usa odds do servidor", async () => {
+  const before = (await api("GET", "/api/wallet")).body.balanceCents;
+  const r = await api("POST", "/api/sports/bet", {
+    matchId: "wc-r16-3",
+    pick: "home",
+    stakeCents: 1000,
+    odds: 999, // odds do cliente devem ser ignoradas
+  });
+  assert.equal(r.status, 201);
+  assert.equal(r.body.balanceCents, before - 1000);
+  assert.equal(r.body.bet.odds, 1.55);
+  assert.equal(r.body.bet.potential_win_cents, 1550);
+  assert.equal(r.body.bet.status, "pending");
+  assert.equal(r.body.bet.pickLabel, "Brasil");
+});
+
+test("esportes: pick inválido e partida inexistente são recusados", async () => {
+  const bad = await api("POST", "/api/sports/bet", { matchId: "wc-r16-3", pick: "banana", stakeCents: 1000 });
+  assert.equal(bad.status, 400);
+  const missing = await api("POST", "/api/sports/bet", { matchId: "nope", pick: "home", stakeCents: 1000 });
+  assert.equal(missing.status, 404);
+});
+
+test("esportes: lista minhas apostas", async () => {
+  const r = await api("GET", "/api/sports/bets");
+  assert.ok(r.body.bets.length >= 1);
+  assert.equal(r.body.bets[0].match.home.name, "Brasil");
 });
 
 test("rotas protegidas exigem token", async () => {

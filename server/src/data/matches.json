@@ -1,0 +1,75 @@
+[
+  {
+    "id": "wc-r16-1",
+    "stage": "Oitavas de final",
+    "kickoff": "2026-07-04T17:00:00Z",
+    "home": { "name": "Canadá", "flag": "🇨🇦" },
+    "away": { "name": "Marrocos", "flag": "🇲🇦" },
+    "venue": "NRG Stadium, Houston",
+    "odds": { "home": 3.4, "draw": 3.1, "away": 2.25 }
+  },
+  {
+    "id": "wc-r16-2",
+    "stage": "Oitavas de final",
+    "kickoff": "2026-07-04T21:00:00Z",
+    "home": { "name": "Paraguai", "flag": "🇵🇾" },
+    "away": { "name": "França", "flag": "🇫🇷" },
+    "venue": "Lincoln Financial Field, Filadélfia",
+    "odds": { "home": 6.5, "draw": 4.0, "away": 1.52 }
+  },
+  {
+    "id": "wc-r16-3",
+    "stage": "Oitavas de final",
+    "kickoff": "2026-07-05T20:00:00Z",
+    "featured": true,
+    "home": { "name": "Brasil", "flag": "🇧🇷" },
+    "away": { "name": "Noruega", "flag": "🇳🇴" },
+    "venue": "MetLife Stadium, Nova York",
+    "odds": { "home": 1.55, "draw": 4.1, "away": 5.9 }
+  },
+  {
+    "id": "wc-r16-4",
+    "stage": "Oitavas de final",
+    "kickoff": "2026-07-06T00:00:00Z",
+    "home": { "name": "México", "flag": "🇲🇽" },
+    "away": { "name": "Inglaterra", "flag": "🏴󠁧󠁢󠁥󠁮󠁧󠁿" },
+    "venue": "Estádio Azteca, Cidade do México",
+    "odds": { "home": 3.9, "draw": 3.3, "away": 1.95 }
+  },
+  {
+    "id": "wc-r16-5",
+    "stage": "Oitavas de final",
+    "kickoff": "2026-07-06T19:00:00Z",
+    "home": { "name": "Espanha", "flag": "🇪🇸" },
+    "away": { "name": "Portugal", "flag": "🇵🇹" },
+    "venue": "AT&T Stadium, Dallas",
+    "odds": { "home": 2.1, "draw": 3.4, "away": 3.5 }
+  },
+  {
+    "id": "wc-r16-6",
+    "stage": "Oitavas de final",
+    "kickoff": "2026-07-07T00:00:00Z",
+    "home": { "name": "Bélgica", "flag": "🇧🇪" },
+    "away": { "name": "Estados Unidos", "flag": "🇺🇸" },
+    "venue": "Lumen Field, Seattle",
+    "odds": { "home": 2.45, "draw": 3.2, "away": 2.9 }
+  },
+  {
+    "id": "wc-r16-7",
+    "stage": "Oitavas de final",
+    "kickoff": "2026-07-07T16:00:00Z",
+    "home": { "name": "Argentina", "flag": "🇦🇷" },
+    "away": { "name": "Egito", "flag": "🇪🇬" },
+    "venue": "Mercedes-Benz Stadium, Atlanta",
+    "odds": { "home": 1.48, "draw": 4.3, "away": 6.8 }
+  },
+  {
+    "id": "wc-r16-8",
+    "stage": "Oitavas de final",
+    "kickoff": "2026-07-07T20:00:00Z",
+    "home": { "name": "Suíça", "flag": "🇨🇭" },
+    "away": { "name": "Colômbia", "flag": "🇨🇴" },
+    "venue": "BC Place, Vancouver",
+    "odds": { "home": 2.75, "draw": 3.1, "away": 2.6 }
+  }
+]

@@ -14,10 +14,10 @@ walletRouter.get("/", wrap((req, res) => {
   });
 }));
 
-/** Cria uma cobrança PIX (QR/copia-e-cola). */
-walletRouter.post("/deposit", wrap((req, res) => {
+/** Cria uma cobrança PIX (QR real + copia-e-cola). */
+walletRouter.post("/deposit", wrap(async (req, res) => {
   const amountCents = Math.round(Number(req.body?.amountCents));
-  res.status(201).json(createCharge(req.user.id, amountCents));
+  res.status(201).json(await createCharge(req.user.id, amountCents));
 }));
 
 /** Consulta o status da cobrança — o front faz polling até 'paid'. */

@@ -1,8 +1,7 @@
 # 🐲 YOSHI BET — Plataforma iGaming (Full-Stack)
 
 Plataforma de cassino online no estilo das grandes casas brasileiras (tema escuro,
-verde neon + dourado, PIX, bônus de boas-vindas), com **front-end** em HTML/CSS/JS
-puros e **backend** Node.js + Express + SQLite com autenticação JWT, carteira
+verde neon + dourado, PIX, bônus de boas-vindas), com **front-end** em HTML/CSS/JS puros (ícones [Twemoji](https://github.com/jdecked/twemoji) CC-BY 4.0) e **backend** Node.js + Express + SQLite com autenticação JWT, carteira
 transacional e jogos rodando no servidor.
 
 > ⚠️ **Projeto demonstrativo.** Nenhuma aposta com dinheiro real é realizada.
@@ -17,7 +16,7 @@ npm start
 # abra http://localhost:3000
 ```
 
-Testes do backend (15 casos, sem dependência extra — `node:test`):
+Testes do backend (19 casos, sem dependência extra — `node:test`):
 
 ```bash
 cd server && npm test
@@ -55,8 +54,13 @@ cd server && npm test
 - **Provably fair** — cada rodada tem `server_seed`; o SHA-256 dele é entregue
   ao jogador no início e o seed é revelado no fim.
 - **PIX real no formato** — o payload copia-e-cola segue o padrão EMV do BACEN,
-  gerado com a lib open-source [`pix-utils`](https://github.com/thalesog/pix-utils).
-  A confirmação é simulada (em produção viria do webhook do PSP).
+  gerado com a lib open-source [`pix-utils`](https://github.com/thalesog/pix-utils),
+  e o QR Code é real e escaneável (lib `qrcode`). A confirmação é simulada
+  (em produção viria do webhook do PSP).
+- **Apostas esportivas server-side** — Copa 2026 com odds e status calculados
+  no servidor; odds enviadas pelo cliente são ignoradas na hora de apostar.
+- **Hardening** — `helmet`, `compression`, `morgan` (logs), rate-limit por IP,
+  body JSON limitado a 64kb.
 - **Bônus de 1º depósito** — 100% até R$ 500, idempotente (webhook duplicado
   não credita duas vezes).
 
@@ -82,6 +86,9 @@ Autenticação: `Authorization: Bearer <token>` (JWT, 7 dias).
 | POST | `/api/games/mines/reveal` | Revela célula `{cell}` |
 | POST | `/api/games/mines/cashout` | Retira o ganho acumulado |
 | GET | `/api/games/history` | Últimas 30 rodadas liquidadas |
+| GET | `/api/sports/matches` | Copa 2026: partidas, odds e status (upcoming/live/finished) |
+| POST | `/api/sports/bet` | Aposta esportiva `{matchId,pick,stakeCents}` — odds do servidor |
+| GET | `/api/sports/bets` | Minhas apostas esportivas |
 
 Limites (config via `.env`): depósito R$ 20–10.000 · aposta R$ 0,50–50 · saque mín. R$ 20.
 
