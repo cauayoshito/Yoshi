@@ -1116,6 +1116,167 @@ body {
   to { transform: translate(-50%, 0); opacity: 1; }
 }
 
+/* ============ ÍCONES TWEMOJI (SVG) ============ */
+.emo {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.12em;
+  user-select: none;
+}
+.game-art .emo {
+  width: 46%;
+  height: auto;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+  transition: transform 0.25s var(--ease);
+}
+.game-card:hover .game-art .emo { transform: scale(1.14) rotate(-3deg); }
+.banner-art img {
+  width: 132px;
+  height: 132px;
+  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.5));
+}
+.slot-cell .emo { width: 56%; height: auto; }
+.mine-cell .emo { width: 60%; height: auto; opacity: 0; }
+.mine-cell.revealed-gem .emo, .mine-cell.revealed-bomb .emo { opacity: 1; }
+.mine-cell { color: inherit; }
+.lb-game .ico .emo { width: 18px; height: 18px; }
+.row-head .emo, .match-day-title .emo { width: 20px; height: 20px; }
+
+/* ============ COPA 2026 / ESPORTES ============ */
+.side-tag-live {
+  background: var(--green);
+  color: #03130a;
+  animation: livePulse 2s infinite;
+}
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+.chip-live {
+  border-color: rgba(0, 232, 128, 0.5);
+  color: var(--green);
+}
+
+.sports-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(115deg, #071f12 0%, #0a3d21 55%, #0e6435 100%);
+  border-radius: var(--r-xl);
+  padding: 30px 36px;
+  margin-bottom: 22px;
+}
+.sports-hero h2 { font-size: 1.8rem; font-weight: 900; margin: 10px 0 6px; }
+.sports-hero-art {
+  width: 92px;
+  height: 92px;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.45));
+  animation: float 3.2s ease-in-out infinite;
+}
+
+.match-day { margin-bottom: 24px; }
+.match-day-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-2);
+  margin-bottom: 12px;
+}
+.match-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 12px; }
+
+.match-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 16px 18px;
+  transition: border-color 0.18s, transform 0.18s var(--ease);
+}
+.match-card:hover { border-color: var(--border-strong); transform: translateY(-2px); }
+.match-featured {
+  border-color: rgba(0, 232, 128, 0.4);
+  background: linear-gradient(135deg, var(--surface), rgba(0, 232, 128, 0.05));
+}
+.match-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-3);
+  margin-bottom: 13px;
+}
+.match-venue {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 55%;
+}
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--green);
+  font-weight: 800;
+  font-size: 0.68rem;
+  letter-spacing: 0.8px;
+}
+.match-teams {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.team {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  min-width: 0;
+}
+.team span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team .flag { width: 27px; height: 27px; border-radius: 5px; flex-shrink: 0; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.4)); }
+.vs {
+  font-size: 0.65rem;
+  font-weight: 900;
+  color: var(--text-3);
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 4px 9px;
+  flex-shrink: 0;
+}
+.match-odds { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.odd {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.odd span { font-size: 0.72rem; font-weight: 700; color: var(--text-3); }
+.odd strong { font-size: 0.88rem; font-weight: 800; color: var(--gold); }
+.odd:hover { border-color: var(--green); transform: translateY(-1px); }
+.odd:active { transform: scale(0.97); }
+.odd.active {
+  background: var(--green-soft);
+  border-color: var(--green);
+  box-shadow: 0 0 0 1px var(--green), 0 0 16px rgba(0, 232, 128, 0.25);
+}
+.odd.active span, .odd.active strong { color: var(--green); }
+
+/* Preview da Copa na home (cards compactos no carrossel) */
+.match-preview-track .match-card { flex: 0 0 330px; scroll-snap-align: start; }
+
 /* ============ RESPONSIVO ============ */
 @media (max-width: 1080px) {
   .sidebar {
@@ -1164,4 +1325,10 @@ body {
   .row-arrow { display: none; }
   .lb-table th, .lb-table td { padding: 10px 12px; }
   .hide-sm { display: none; }
+  .match-list { grid-template-columns: 1fr; }
+  .match-preview-track .match-card { flex: 0 0 292px; }
+  .sports-hero { padding: 22px 20px; }
+  .sports-hero h2 { font-size: 1.4rem; }
+  .sports-hero-art { width: 64px; height: 64px; }
+  .banner-art img { display: none; }
 }

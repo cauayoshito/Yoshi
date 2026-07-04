@@ -129,7 +129,7 @@
       loadHistory();
     }
 
-    ["home", "catalog", "promos", "profile"].forEach((v) =>
+    ["home", "catalog", "promos", "profile", "sports"].forEach((v) =>
       $(`#view-${v}`).classList.toggle("hidden", v !== target)
     );
     $$(".side-link").forEach((a) => a.classList.toggle("active", a.dataset.view === name));
@@ -325,7 +325,7 @@
       : "";
     return `<div class="game-card" data-game="${g.id}">
       ${badge}
-      <div class="game-art" style="background:${g.gradient}">${g.emoji}</div>
+      <div class="game-art" style="background:${g.gradient}">${icon(g.emoji)}</div>
       <div class="game-info">
         <div class="game-name">${g.name}</div>
         <div class="game-provider">${g.provider}</div>
@@ -405,7 +405,7 @@
     $("#gridTitle").textContent = `Resultados para "${term}"`;
     $("#gamesCount").textContent = `${list.length} jogos`;
     $("#gamesGrid").innerHTML = list.map(gameCardHTML).join("");
-    ["home", "catalog", "promos", "profile"].forEach((v) =>
+    ["home", "catalog", "promos", "profile", "sports"].forEach((v) =>
       $(`#view-${v}`).classList.toggle("hidden", v !== "catalog")
     );
   }
@@ -505,7 +505,7 @@
     const profitCls = b.won ? "lb-profit-win" : "lb-profit-loss";
     const profitTxt = (b.won ? "+R$ " : "−R$ ") + Math.abs(b.profit).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return `<tr class="${isNew ? "lb-new" : ""}">
-      <td><span class="lb-game"><span class="ico">${b.game.emoji}</span>${b.game.name}</span></td>
+      <td><span class="lb-game"><span class="ico">${icon(b.game.emoji)}</span>${b.game.name}</span></td>
       <td class="lb-user">${b.masked}</td>
       <td class="lb-time hide-sm">${b.time}</td>
       <td>R$ ${b.bet.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
@@ -526,6 +526,73 @@
 
   setInterval(pushLiveBet, 2800);
 
+
+  /* ============ COPA 2026 (apostas esportivas demo) ============ */
+  function matchCardHTML(m, compact = false) {
+    const liveBadge = m.live ? '<span class="live-badge"><span class="pulse-dot"></span> AO VIVO</span>' : "";
+    const oddBtn = (label, key) =>
+      `<button class="odd" data-odd="${key}" data-match="${m.home.name} x ${m.away.name}">
+        <span>${label}</span><strong>${m.odds[key].toFixed(2)}</strong>
+      </button>`;
+    return `<div class="match-card ${m.featured ? "match-featured" : ""} ${compact ? "match-compact" : ""}">
+      <div class="match-meta">
+        <span>${m.day} · ${m.time}</span>
+        ${liveBadge || `<span class="match-venue">${m.venue}</span>`}
+      </div>
+      <div class="match-teams">
+        <div class="team">${icon(m.home.flag, "flag")}<span>${m.home.name}</span></div>
+        <span class="vs">VS</span>
+        <div class="team team-away"><span>${m.away.name}</span>${icon(m.away.flag, "flag")}</div>
+      </div>
+      <div class="match-odds">
+        ${oddBtn("1", "home")}
+        ${oddBtn("X", "draw")}
+        ${oddBtn("2", "away")}
+      </div>
+    </div>`;
+  }
+
+  function renderSports() {
+    const container = $("#matchesContainer");
+    const byDay = {};
+    WC_MATCHES.forEach((m) => (byDay[m.day] ||= []).push(m));
+    container.innerHTML = Object.entries(byDay)
+      .map(
+        ([day, matches]) => `<div class="match-day">
+          <h3 class="match-day-title">${day}</h3>
+          <div class="match-list">${matches.map((m) => matchCardHTML(m)).join("")}</div>
+        </div>`
+      )
+      .join("");
+  }
+
+  function renderSportsPreview() {
+    const picks = [WC_MATCHES[0], WC_MATCHES[2], WC_MATCHES[3]];
+    $("#sportsPreview").innerHTML = `
+      <div class="row-head">
+        <h3>${icon("⚽")} Copa 2026 · Oitavas</h3>
+        <div class="row-actions">
+          <button class="row-see" data-view-btn="sports">Ver todos ›</button>
+        </div>
+      </div>
+      <div class="row-track match-preview-track">
+        ${picks.map((m) => matchCardHTML(m, true)).join("")}
+      </div>`;
+  }
+
+  // Seleção de odds (demo)
+  document.addEventListener("click", (e) => {
+    const odd = e.target.closest(".odd");
+    if (!odd) return;
+    if (!requireLogin()) return;
+    const wasActive = odd.classList.contains("active");
+    odd.closest(".match-odds").querySelectorAll(".odd").forEach((o) => o.classList.remove("active"));
+    if (!wasActive) {
+      odd.classList.add("active");
+      toast(`⚽ Seleção adicionada: ${odd.dataset.match} @ ${odd.querySelector("strong").textContent} (demo)`);
+    }
+  });
+
   /* ============ SLOT: FORTUNE YOSHI ============ */
   const BET_STEPS = [50, 100, 200, 500, 1000, 2500, 5000]; // centavos
   let slotBetCents = 100;
@@ -540,7 +607,7 @@
 
   function renderSlotGrid(symbols, winCells = []) {
     $("#slotGrid").innerHTML = symbols
-      .map((s, i) => `<div class="slot-cell ${winCells.includes(i) ? "win-cell" : ""}">${s}</div>`)
+      .map((s, i) => `<div class="slot-cell ${winCells.includes(i) ? "win-cell" : ""}">${icon(s)}</div>`)
       .join("");
   }
 
@@ -568,7 +635,7 @@
 
     const shuffle = setInterval(() => {
       $$("#slotGrid .slot-cell").forEach((c) => {
-        c.textContent = SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)];
+        c.innerHTML = icon(SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]);
       });
     }, 90);
 
@@ -634,10 +701,10 @@
       const revealed = minesRevealed.has(i);
       const isBomb = minesBombsShown.includes(i);
       let cls = "mine-cell";
-      let content = "💎";
+      let content = icon("💎");
       if (revealed || isBomb) {
         cls += isBomb ? " revealed-bomb" : " revealed-gem";
-        content = isBomb ? "💣" : "💎";
+        content = isBomb ? icon("💣") : icon("💎");
       }
       return `<button class="${cls}" data-cell="${i}" ${disabled || revealed || isBomb ? "disabled" : ""}>${content}</button>`;
     }).join("");
@@ -719,6 +786,8 @@
   (async () => {
     renderRows(); // skeletons
     seedLiveBets();
+    renderSports();
+    renderSportsPreview();
 
     try {
       const data = await api("GET", "/api/games");

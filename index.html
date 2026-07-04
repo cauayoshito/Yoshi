@@ -29,6 +29,10 @@
         <a href="#" class="side-link" data-view="new"><span class="side-ico">✨</span>Lançamentos</a>
       </nav>
       <nav class="side-group">
+        <span class="side-label">Esportes</span>
+        <a href="#" class="side-link" data-view="sports"><span class="side-ico">⚽</span>Copa 2026<span class="side-tag side-tag-live">AO VIVO</span></a>
+      </nav>
+      <nav class="side-group">
         <span class="side-label">Para você</span>
         <a href="#" class="side-link" data-view="promos"><span class="side-ico">🎁</span>Promoções<span class="side-tag side-tag-gold">4</span></a>
         <a href="#" class="side-link" data-view="profile"><span class="side-ico">👤</span>Minha Conta</a>
@@ -100,7 +104,7 @@
                 <p>No seu primeiro depósito via PIX. Cai na hora.</p>
                 <button class="btn btn-cta" data-modal="registerModal">Criar conta grátis</button>
               </div>
-              <div class="banner-art">🐯</div>
+              <div class="banner-art"><img src="assets/twemoji/1f42f.svg" alt="🐯" /></div>
             </div>
             <div class="banner banner-2">
               <div class="banner-glow"></div>
@@ -110,7 +114,7 @@
                 <p>Devolvemos parte das suas perdas toda segunda.</p>
                 <button class="btn btn-cta" data-view-btn="promos">Ver promoções</button>
               </div>
-              <div class="banner-art">💰</div>
+              <div class="banner-art"><img src="assets/twemoji/1f4b0.svg" alt="💰" /></div>
             </div>
             <div class="banner banner-3">
               <div class="banner-glow"></div>
@@ -120,7 +124,7 @@
                 <p>Jogue os slots participantes e suba no ranking.</p>
                 <button class="btn btn-cta" data-view-btn="casino">Jogar agora</button>
               </div>
-              <div class="banner-art">🏆</div>
+              <div class="banner-art"><img src="assets/twemoji/1f3c6.svg" alt="🏆" /></div>
             </div>
           </div>
           <div class="carousel-nav">
@@ -132,6 +136,7 @@
 
         <!-- Chips de categoria (mobile) -->
         <div class="category-chips" id="categoryChips">
+          <button class="chip chip-live" data-view-btn="sports">⚽ Copa 2026</button>
           <button class="chip" data-view-btn="originals">🐲 Originals</button>
           <button class="chip" data-view-btn="casino">🎰 Slots</button>
           <button class="chip" data-view-btn="crash">🚀 Crash</button>
@@ -139,6 +144,9 @@
           <button class="chip" data-view-btn="table">🃏 Mesa</button>
           <button class="chip" data-view-btn="new">✨ Novos</button>
         </div>
+
+        <!-- Destaque Copa 2026 (renderizado pelo JS) -->
+        <section class="game-row" id="sportsPreview"></section>
 
         <!-- Carrosséis de jogos por categoria (renderizados pelo JS) -->
         <div id="rowsContainer"></div>
@@ -172,6 +180,19 @@
             <div class="provider-chip">NOLIMIT</div>
           </div>
         </section>
+      </section>
+
+      <!-- ============ VIEW: ESPORTES / COPA 2026 ============ -->
+      <section class="view hidden" id="view-sports">
+        <div class="sports-hero">
+          <div>
+            <span class="banner-tag">⚽ OITAVAS DE FINAL</span>
+            <h2>Copa do Mundo <span class="hl-gold">2026</span></h2>
+            <p class="muted">Confrontos reais do mata-mata · Mercado 1X2 (demo)</p>
+          </div>
+          <img class="sports-hero-art" src="assets/twemoji/1f3c6.svg" alt="🏆" />
+        </div>
+        <div id="matchesContainer"></div>
       </section>
 
       <!-- ============ VIEW: CATÁLOGO (categoria/busca) ============ -->
@@ -276,7 +297,7 @@
           </div>
         </div>
         <div class="footer-bottom">
-          <p>© 2026 YOSHI BET — Projeto demonstrativo de front-end. Nenhuma aposta com dinheiro real é realizada nesta plataforma. Proibido para menores de 18 anos.</p>
+          <p>© 2026 YOSHI BET — Projeto demonstrativo de front-end. Nenhuma aposta com dinheiro real é realizada nesta plataforma. Proibido para menores de 18 anos.<br />Ícones por <a href="https://github.com/jdecked/twemoji" target="_blank" rel="noopener" style="color:inherit">Twemoji</a> (CC-BY 4.0).</p>
         </div>
       </footer>
     </main>
@@ -414,6 +435,7 @@
 <!-- Toast -->
 <div class="toast hidden" id="toast"></div>
 
+<script src="js/twemoji-map.js"></script>
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
 </body>
