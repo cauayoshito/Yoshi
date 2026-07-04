@@ -1,7 +1,7 @@
 /* ============================================================
-   YOSHI BET — Front-end integrado à API (server/)
-   Autenticação JWT, carteira e jogos rodam no servidor;
-   aqui fica só interface e animação.
+   YOSHI BET — Front-end v2 (estilo Blaze/Betano)
+   Integrado à API (server/): autenticação JWT, carteira e
+   jogos rodam no servidor; aqui fica interface e animação.
    ============================================================ */
 
 (() => {
@@ -89,27 +89,52 @@
     return false;
   }
 
+  /* ============ SIDEBAR (drawer no mobile) ============ */
+  const sidebar = $("#sidebar");
+  const backdrop = $("#sidebarBackdrop");
+  function closeSidebar() {
+    sidebar.classList.remove("open");
+    backdrop.classList.remove("show");
+  }
+  $("#menuBtn").addEventListener("click", () => {
+    sidebar.classList.toggle("open");
+    backdrop.classList.toggle("show", sidebar.classList.contains("open"));
+  });
+  backdrop.addEventListener("click", closeSidebar);
+
   /* ============ NAVEGAÇÃO ENTRE VIEWS ============ */
-  const VIEWS = ["home", "promos", "profile"];
+  // Views físicas: home, catalog, promos, profile.
+  // Nomes de categoria viram o catálogo filtrado.
+  const CATALOG_CATS = {
+    originals: { cat: "originals", title: "🐲 Yoshi Originals" },
+    casino: { cat: "slots", title: CAT_TITLES.slots },
+    crash: { cat: "crash", title: CAT_TITLES.crash },
+    live: { cat: "live", title: CAT_TITLES.live },
+    table: { cat: "table", title: CAT_TITLES.table },
+    new: { cat: "new", title: CAT_TITLES.new },
+  };
 
   function showView(name) {
-    const catMap = { casino: "slots", live: "live", crash: "crash" };
     let target = name;
-    if (catMap[name]) {
-      target = "home";
-      setCategory(catMap[name]);
-    } else if (name === "home") {
-      setCategory("all");
+    if (CATALOG_CATS[name]) {
+      target = "catalog";
+      openCatalog(CATALOG_CATS[name].cat, CATALOG_CATS[name].title);
+    }
+    if (name === "home") {
+      searchTerm = "";
+      $("#searchInput").value = "";
     }
     if (name === "profile") {
       if (!user) return void requireLogin();
       loadHistory();
     }
 
-    VIEWS.forEach((v) => $(`#view-${v}`).classList.toggle("hidden", v !== target));
-    $$(".nav-link").forEach((a) => a.classList.toggle("active", a.dataset.view === name));
+    ["home", "catalog", "promos", "profile"].forEach((v) =>
+      $(`#view-${v}`).classList.toggle("hidden", v !== target)
+    );
+    $$(".side-link").forEach((a) => a.classList.toggle("active", a.dataset.view === name));
     $$(".bnav-item[data-view]").forEach((a) => a.classList.toggle("active", a.dataset.view === name));
-    $("#mainNav").classList.remove("open");
+    closeSidebar();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -122,8 +147,6 @@
     const viewBtn = e.target.closest("[data-view-btn]");
     if (viewBtn) showView(viewBtn.dataset.viewBtn);
   });
-
-  $("#menuBtn").addEventListener("click", () => $("#mainNav").classList.toggle("open"));
 
   /* ============ MODAIS ============ */
   function openModal(id) {
@@ -154,7 +177,15 @@
   });
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeModals();
+    if (e.key === "Escape") {
+      closeModals();
+      closeSidebar();
+    }
+    // Atalho "/" foca a busca (padrão das casas grandes)
+    if (e.key === "/" && document.activeElement !== $("#searchInput")) {
+      e.preventDefault();
+      $("#searchInput").focus();
+    }
   });
 
   /* ============ LOGIN / CADASTRO ============ */
@@ -257,7 +288,6 @@
       $("#pixCode").value = charge.brcode;
       $("#pixArea").classList.remove("hidden");
 
-      // Polling até o "webhook" do PSP confirmar o pagamento
       pixPollTimer = setInterval(async () => {
         try {
           const st = await api("GET", `/api/wallet/deposit/${charge.txid}`);
@@ -286,57 +316,108 @@
     }
   });
 
-  /* ============ CATÁLOGO / GRADE DE JOGOS ============ */
-  let currentCat = "all";
-  let searchTerm = "";
-
-  function setCategory(cat) {
-    currentCat = cat;
-    $$(".cat-tab").forEach((t) => t.classList.toggle("active", t.dataset.cat === cat));
-    $("#gridTitle").textContent = CAT_TITLES[cat] || "Jogos";
-    renderGames();
+  /* ============ CARDS / FILEIRAS / CATÁLOGO ============ */
+  function gameCardHTML(g) {
+    const badge = g.badge
+      ? `<span class="game-badge badge-${g.badge}">${
+          { hot: "🔥 HOT", new: "NOVO", demo: "JOGÁVEL" }[g.badge]
+        }</span>`
+      : "";
+    return `<div class="game-card" data-game="${g.id}">
+      ${badge}
+      <div class="game-art" style="background:${g.gradient}">${g.emoji}</div>
+      <div class="game-info">
+        <div class="game-name">${g.name}</div>
+        <div class="game-provider">${g.provider}</div>
+      </div>
+      <div class="game-play"><span>▶</span></div>
+    </div>`;
   }
 
-  function renderGames() {
-    const term = searchTerm.toLowerCase();
-    const finalList = term
-      ? GAMES.filter(
-          (g) => g.name.toLowerCase().includes(term) || g.provider.toLowerCase().includes(term)
-        )
-      : GAMES.filter((g) => g.cats.includes(currentCat));
+  const ROWS = [
+    { key: "originals", title: "🐲 Yoshi Originals", filter: (g) => g.provider === "Yoshi Originals" },
+    { key: "all", title: "🔥 Populares", filter: (g) => g.cats.includes("all") },
+    { key: "casino", title: "🎰 Slots", filter: (g) => g.cats.includes("slots") },
+    { key: "crash", title: "🚀 Crash", filter: (g) => g.cats.includes("crash") },
+    { key: "live", title: "🎥 Ao Vivo", filter: (g) => g.cats.includes("live") },
+    { key: "table", title: "🃏 Mesa", filter: (g) => g.cats.includes("table") },
+  ];
 
-    $("#gamesCount").textContent = `${finalList.length} jogos`;
-    $("#gamesGrid").innerHTML = finalList
-      .map((g) => {
-        const badge = g.badge
-          ? `<span class="game-badge badge-${g.badge}">${
-              { hot: "🔥 HOT", new: "NOVO", demo: "JOGÁVEL" }[g.badge]
-            }</span>`
-          : "";
-        return `<div class="game-card" data-game="${g.id}">
-          ${badge}
-          <div class="game-art" style="background:${g.gradient}">${g.emoji}</div>
-          <div class="game-info">
-            <div class="game-name">${g.name}</div>
-            <div class="game-provider">${g.provider}</div>
+  function renderRows() {
+    const container = $("#rowsContainer");
+    if (!GAMES.length) {
+      // skeletons enquanto a API responde
+      container.innerHTML = ROWS.slice(0, 3)
+        .map(
+          () => `<section class="game-row">
+            <div class="row-head"><h3>&nbsp;</h3></div>
+            <div class="row-track">${'<div class="skeleton-card"></div>'.repeat(7)}</div>
+          </section>`
+        )
+        .join("");
+      return;
+    }
+    container.innerHTML = ROWS.map((row) => {
+      const games = GAMES.filter(row.filter);
+      if (!games.length) return "";
+      const seeAll = row.key !== "all"
+        ? `<button class="row-see" data-view-btn="${row.key}">Ver todos ›</button>`
+        : "";
+      return `<section class="game-row" data-row="${row.key}">
+        <div class="row-head">
+          <h3>${row.title}</h3>
+          <div class="row-actions">
+            ${seeAll}
+            <button class="row-arrow" data-scroll="-1" aria-label="Anterior">‹</button>
+            <button class="row-arrow" data-scroll="1" aria-label="Próximo">›</button>
           </div>
-          <div class="game-play"><span>▶</span></div>
-        </div>`;
-      })
-      .join("");
+        </div>
+        <div class="row-track">${games.map(gameCardHTML).join("")}</div>
+      </section>`;
+    }).join("");
+  }
+
+  // Setas das fileiras
+  document.addEventListener("click", (e) => {
+    const arrow = e.target.closest("[data-scroll]");
+    if (!arrow) return;
+    const track = arrow.closest(".game-row").querySelector(".row-track");
+    track.scrollBy({ left: Number(arrow.dataset.scroll) * track.clientWidth * 0.8, behavior: "smooth" });
+  });
+
+  let searchTerm = "";
+
+  function openCatalog(cat, title) {
+    const list =
+      cat === "originals"
+        ? GAMES.filter((g) => g.provider === "Yoshi Originals")
+        : GAMES.filter((g) => g.cats.includes(cat));
+    $("#gridTitle").textContent = title;
+    $("#gamesCount").textContent = `${list.length} jogos`;
+    $("#gamesGrid").innerHTML = list.map(gameCardHTML).join("");
+  }
+
+  function openSearch(term) {
+    const t = term.toLowerCase();
+    const list = GAMES.filter(
+      (g) => g.name.toLowerCase().includes(t) || g.provider.toLowerCase().includes(t)
+    );
+    $("#gridTitle").textContent = `Resultados para "${term}"`;
+    $("#gamesCount").textContent = `${list.length} jogos`;
+    $("#gamesGrid").innerHTML = list.map(gameCardHTML).join("");
+    ["home", "catalog", "promos", "profile"].forEach((v) =>
+      $(`#view-${v}`).classList.toggle("hidden", v !== "catalog")
+    );
   }
 
   $("#searchInput").addEventListener("input", (e) => {
     searchTerm = e.target.value.trim();
-    $("#gridTitle").textContent = searchTerm
-      ? `🔍 Resultados para "${searchTerm}"`
-      : CAT_TITLES[currentCat];
-    renderGames();
+    if (searchTerm) openSearch(searchTerm);
+    else showView("home");
   });
 
-  $$(".cat-tab").forEach((t) => t.addEventListener("click", () => setCategory(t.dataset.cat)));
-
-  $("#gamesGrid").addEventListener("click", (e) => {
+  // Clique em qualquer card (fileiras ou catálogo)
+  document.addEventListener("click", (e) => {
     const card = e.target.closest("[data-game]");
     if (!card) return;
     const game = GAMES.find((g) => g.id === card.dataset.game);
@@ -377,39 +458,73 @@
     }
   }
 
-  /* ============ CARROSSEL ============ */
+  /* ============ HERO / CARROSSEL ============ */
   const track = $("#carouselTrack");
   const banners = track.children.length;
   let slide = 0;
+  let heroTimer;
   const dotsWrap = $("#carouselDots");
   for (let i = 0; i < banners; i++) {
     const dot = document.createElement("button");
-    dot.addEventListener("click", () => goSlide(i));
+    dot.addEventListener("click", () => goSlide(i, true));
     dotsWrap.appendChild(dot);
   }
-  function goSlide(i) {
+  function goSlide(i, manual = false) {
     slide = (i + banners) % banners;
     track.style.transform = `translateX(-${slide * 100}%)`;
     [...dotsWrap.children].forEach((d, j) => d.classList.toggle("active", j === slide));
+    if (manual) restartHeroTimer();
   }
-  setInterval(() => goSlide(slide + 1), 6000);
+  function restartHeroTimer() {
+    clearInterval(heroTimer);
+    heroTimer = setInterval(() => goSlide(slide + 1), 6000);
+  }
+  $("#heroPrev").addEventListener("click", () => goSlide(slide - 1, true));
+  $("#heroNext").addEventListener("click", () => goSlide(slide + 1, true));
+  restartHeroTimer();
   goSlide(0);
 
-  /* ============ TICKER DE GANHADORES (decorativo) ============ */
-  function buildWinners() {
-    if (!GAMES.length) return;
-    const items = [];
-    for (let i = 0; i < 14; i++) {
-      const name = WINNER_NAMES[Math.floor(Math.random() * WINNER_NAMES.length)];
-      const game = GAMES[Math.floor(Math.random() * GAMES.length)];
-      const value = Math.random() * 4900 + 100;
-      items.push(
-        `<span class="winner-item">💵 <em>${name}</em> ganhou <strong>R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> em ${game.name}</span>`
-      );
-    }
-    $("#winnersTrack").innerHTML = items.join("") + items.join("");
+  /* ============ APOSTAS AO VIVO (decorativo) ============ */
+  const LB_MAX = 10;
+
+  function randomBet() {
+    const name = WINNER_NAMES[Math.floor(Math.random() * WINNER_NAMES.length)];
+    const masked = name.slice(0, 2) + "***";
+    const game = GAMES.length
+      ? GAMES[Math.floor(Math.random() * GAMES.length)]
+      : { name: "Fortune Yoshi", emoji: "🐲" };
+    const bet = [2, 5, 10, 20, 50, 100, 250][Math.floor(Math.random() * 7)];
+    const won = Math.random() < 0.42;
+    const mult = won ? (1 + Math.random() * 9) : 0;
+    const profit = won ? bet * mult : -bet;
+    const time = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return { masked, game, bet, mult, profit, won, time };
   }
-  setInterval(buildWinners, 30000);
+
+  function liveBetRowHTML(b, isNew = false) {
+    const profitCls = b.won ? "lb-profit-win" : "lb-profit-loss";
+    const profitTxt = (b.won ? "+R$ " : "−R$ ") + Math.abs(b.profit).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return `<tr class="${isNew ? "lb-new" : ""}">
+      <td><span class="lb-game"><span class="ico">${b.game.emoji}</span>${b.game.name}</span></td>
+      <td class="lb-user">${b.masked}</td>
+      <td class="lb-time hide-sm">${b.time}</td>
+      <td>R$ ${b.bet.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
+      <td class="lb-mult hide-sm">${b.won ? b.mult.toFixed(2) + "x" : "—"}</td>
+      <td class="${profitCls}">${profitTxt}</td>
+    </tr>`;
+  }
+
+  function seedLiveBets() {
+    $("#liveBetsBody").innerHTML = Array.from({ length: LB_MAX }, () => liveBetRowHTML(randomBet())).join("");
+  }
+
+  function pushLiveBet() {
+    const body = $("#liveBetsBody");
+    body.insertAdjacentHTML("afterbegin", liveBetRowHTML(randomBet(), true));
+    while (body.children.length > LB_MAX) body.lastElementChild.remove();
+  }
+
+  setInterval(pushLiveBet, 2800);
 
   /* ============ SLOT: FORTUNE YOSHI ============ */
   const BET_STEPS = [50, 100, 200, 500, 1000, 2500, 5000]; // centavos
@@ -458,7 +573,6 @@
     }, 90);
 
     try {
-      // resultado vem do servidor; animação dura ao menos 1,2s
       const [result] = await Promise.all([
         api("POST", "/api/games/slot/spin", { betCents: slotBetCents }),
         new Promise((r) => setTimeout(r, 1200)),
@@ -492,7 +606,6 @@
     closeModals();
     resetMinesUI();
     openModal("minesModal");
-    // retoma rodada ativa (ex.: recarregou a página no meio do jogo)
     try {
       const { round } = await api("GET", "/api/games/mines/active");
       if (round) {
@@ -585,7 +698,6 @@
       }
 
       if (data.outcome === "cashout") {
-        // limpou o campo — o servidor liquidou sozinho
         minesBombsShown = data.bombs;
         minesActive = false;
         setBalance(data.balanceCents);
@@ -605,14 +717,17 @@
 
   /* ============ INICIALIZAÇÃO ============ */
   (async () => {
+    renderRows(); // skeletons
+    seedLiveBets();
+
     try {
       const data = await api("GET", "/api/games");
       GAMES = data.games;
     } catch (err) {
       toast(err.message);
     }
-    renderGames();
-    buildWinners();
+    renderRows();
+    seedLiveBets();
 
     if (token) {
       try {
