@@ -10,6 +10,7 @@ import { authRouter } from "./routes/auth.js";
 import { walletRouter } from "./routes/wallet.js";
 import { gamesRouter } from "./routes/games.js";
 import { sportsRouter } from "./routes/sports.js";
+import { adminRouter } from "./routes/admin.js";
 
 export function createApp() {
   const app = express();
@@ -39,6 +40,7 @@ export function createApp() {
   app.use("/api/wallet", walletRouter);
   app.use("/api/games", gamesRouter);
   app.use("/api/sports", sportsRouter);
+  app.use("/api/admin", adminRouter);
 
   // Serve o front-end estático (raiz do repositório)
   app.use(express.static(config.staticRoot));

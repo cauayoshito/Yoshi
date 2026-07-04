@@ -1,0 +1,20 @@
+# Deploy no Render (https://render.com) — blueprint
+# 1. Suba este repositório no GitHub
+# 2. Render → New → Blueprint → aponte para o repo
+services:
+  - type: web
+    name: yoshibet
+    runtime: docker
+    plan: starter          # o plano free não tem disco persistente
+    healthCheckPath: /api/health
+    disk:
+      name: yoshibet-data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: cauayoshito1@gmail.com
+      - key: PIX_DEMO_AUTOCONFIRM_MS
+        value: "4000"

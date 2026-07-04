@@ -5,6 +5,7 @@ import fs from "node:fs";
 // Banco isolado e webhook demo desligado (confirmamos manualmente no teste)
 process.env.NODE_ENV = "test";
 process.env.DB_PATH = "data/test.db";
+process.env.ADMIN_EMAIL = "chefe@yoshibet.com";
 process.env.PIX_DEMO_AUTOCONFIRM_MS = "0";
 process.env.JWT_SECRET = "segredo-de-teste";
 
@@ -216,4 +217,81 @@ test("rotas protegidas exigem token", async () => {
   const r = await api("GET", "/api/wallet");
   assert.equal(r.status, 401);
   token = saved;
+});
+
+test("admin: usuário comum recebe 403", async () => {
+  const r = await api("GET", "/api/admin/stats");
+  assert.equal(r.status, 403);
+});
+
+let adminToken;
+
+test("admin: cadastro com ADMIN_EMAIL vira administrador", async () => {
+  const r = await api("POST", "/api/auth/register", {
+    name: "Chefe",
+    email: "chefe@yoshibet.com",
+    password: "supersegura",
+  });
+  assert.equal(r.status, 201);
+  assert.equal(r.body.user.role, "admin");
+  adminToken = r.body.token;
+});
+
+test("admin: stats retornam métricas coerentes", async () => {
+  const saved = token;
+  token = adminToken;
+  const r = await api("GET", "/api/admin/stats");
+  assert.equal(r.status, 200);
+  assert.ok(r.body.users >= 2);
+  assert.ok(r.body.depositsCents >= 7000); // 50 + 20 depositados nos testes
+  assert.ok(typeof r.body.ggrCents === "number");
+  token = saved;
+});
+
+test("liquidação: resultado paga vencedores e marca perdedores", async () => {
+  // aposta do usuário comum no empate de wc-r16-5 (Espanha x Portugal, odd 3.4)
+  const bet = await api("POST", "/api/sports/bet", {
+    matchId: "wc-r16-5",
+    pick: "draw",
+    stakeCents: 1000,
+  });
+  assert.equal(bet.status, 201);
+  const balanceBefore = bet.body.balanceCents;
+
+  // admin registra 1x1 → aposta no empate ganha
+  const saved = token;
+  token = adminToken;
+  const result = await api("POST", "/api/admin/matches/wc-r16-5/result", {
+    homeScore: 1,
+    awayScore: 1,
+  });
+  assert.equal(result.status, 200);
+  assert.equal(result.body.outcome, "draw");
+  assert.equal(result.body.won, 1);
+  assert.equal(result.body.paidCents, 3400);
+
+  // resultado duplicado é recusado (idempotência)
+  const dup = await api("POST", "/api/admin/matches/wc-r16-5/result", {
+    homeScore: 2,
+    awayScore: 0,
+  });
+  assert.equal(dup.status, 409);
+  token = saved;
+
+  // saldo do apostador foi creditado e a aposta marcada como ganha
+  const wallet = await api("GET", "/api/wallet");
+  assert.equal(wallet.body.balanceCents, balanceBefore + 3400);
+  const bets = await api("GET", "/api/sports/bets");
+  const settled = bets.body.bets.find((b) => b.match_id === "wc-r16-5");
+  assert.equal(settled.status, "won");
+});
+
+test("liquidação: apostar em partida com resultado é bloqueado", async () => {
+  const r = await api("POST", "/api/sports/bet", {
+    matchId: "wc-r16-5",
+    pick: "home",
+    stakeCents: 1000,
+  });
+  assert.equal(r.status, 400);
+  assert.match(r.body.error, /encerrado/i);
 });

@@ -12,11 +12,18 @@ export function requireAuth(req, res, next) {
   if (!token) return res.status(401).json({ error: "Faça login para continuar" });
   try {
     const payload = jwt.verify(token, config.jwtSecret);
-    const user = db.prepare("SELECT id, name, email, balance_cents FROM users WHERE id = ?").get(payload.sub);
+    const user = db.prepare("SELECT id, name, email, balance_cents, role FROM users WHERE id = ?").get(payload.sub);
     if (!user) return res.status(401).json({ error: "Sessão inválida" });
     req.user = user;
     next();
   } catch {
     return res.status(401).json({ error: "Sessão expirada, entre novamente" });
   }
+}
+
+export function requireAdmin(req, res, next) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Acesso restrito à administração" });
+  }
+  next();
 }

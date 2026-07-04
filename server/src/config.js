@@ -32,5 +32,7 @@ export const config = {
     minWithdrawCents: 2000,     // R$ 20
   },
 
+  adminEmail: (process.env.ADMIN_EMAIL || "admin@yoshibet.com").toLowerCase(),
+
   staticRoot: path.resolve(__dirname, "..", ".."),
 };

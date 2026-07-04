@@ -594,13 +594,19 @@
 
   function matchCardHTML(m, compact = false) {
     const k = fmtKickoff(m.kickoff);
+    const finished = m.status === "finished";
     const liveBadge =
       m.status === "live"
         ? '<span class="live-badge"><span class="pulse-dot"></span> AO VIVO</span>'
-        : `<span class="match-venue">${m.venue}</span>`;
+        : finished
+          ? '<span class="match-venue">Encerrado</span>'
+          : `<span class="match-venue">${m.venue}</span>`;
+    const middle = finished && m.result
+      ? `<span class="vs vs-score">${m.result.home_score} x ${m.result.away_score}</span>`
+      : '<span class="vs">VS</span>';
     const pickName = { home: m.home.name, draw: "Empate", away: m.away.name };
     const oddBtn = (label, key) =>
-      `<button class="odd" data-match-id="${m.id}" data-pick="${key}" data-odds="${m.odds[key]}"
+      `<button class="odd" ${finished ? "disabled" : ""} data-match-id="${m.id}" data-pick="${key}" data-odds="${m.odds[key]}"
         data-pick-label="${pickName[key]}" data-match-name="${m.home.name} x ${m.away.name}">
         <span>${label}</span><strong>${m.odds[key].toFixed(2)}</strong>
       </button>`;
@@ -611,7 +617,7 @@
       </div>
       <div class="match-teams">
         <div class="team">${icon(m.home.flag, "flag")}<span>${m.home.name}</span></div>
-        <span class="vs">VS</span>
+        ${middle}
         <div class="team team-away"><span>${m.away.name}</span>${icon(m.away.flag, "flag")}</div>
       </div>
       <div class="match-odds">
@@ -718,7 +724,7 @@
   // Seleção de odds abre o cupom
   document.addEventListener("click", (e) => {
     const odd = e.target.closest(".odd");
-    if (!odd) return;
+    if (!odd || odd.disabled) return;
     if (!requireLogin()) return;
     $$(".odd.active").forEach((o) => o.classList.remove("active"));
     odd.classList.add("active");

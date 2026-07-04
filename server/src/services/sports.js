@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import crypto from "node:crypto";
 import { db } from "../db.js";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/error.js";
@@ -24,7 +25,15 @@ function matchStatus(m, now = Date.now()) {
 
 export function listMatches() {
   const now = Date.now();
-  return MATCHES.map((m) => ({ ...m, status: matchStatus(m, now) }));
+  return MATCHES.map((m) => ({
+    ...m,
+    status: matchStatus(m, now),
+    result: getResult(m.id) || null,
+  }));
+}
+
+function getResult(matchId) {
+  return db.prepare("SELECT * FROM match_results WHERE match_id = ?").get(matchId);
 }
 
 export function getMatch(matchId) {
@@ -35,7 +44,9 @@ export function placeBet(userId, matchId, pick, stakeCents) {
   const match = getMatch(matchId);
   if (!match) throw new ApiError(404, "Partida não encontrada");
   if (!PICKS.includes(pick)) throw new ApiError(400, "Escolha inválida (home, draw ou away)");
-  if (matchStatus(match) === "finished") throw new ApiError(400, "Mercado encerrado para esta partida");
+  if (matchStatus(match) === "finished" || getResult(matchId)) {
+    throw new ApiError(400, "Mercado encerrado para esta partida");
+  }
   if (
     !Number.isInteger(stakeCents) ||
     stakeCents < config.limits.minBetCents ||
@@ -90,4 +101,73 @@ function decorate(bet) {
   const pickLabel =
     bet.pick === "draw" ? "Empate" : match ? match[bet.pick].name : bet.pick;
   return { ...bet, match, pickLabel };
+}
+
+/* ============ RESULTADOS E LIQUIDAÇÃO ============ */
+
+/**
+ * Registra o resultado e liquida TODAS as apostas pendentes da partida
+ * em uma única transação: vencedores recebem o retorno potencial no
+ * livro-razão; perdedores são marcados como 'lost'. Idempotente.
+ */
+export function setResult(matchId, homeScore, awayScore, source = "admin") {
+  const match = getMatch(matchId);
+  if (!match) throw new ApiError(404, "Partida não encontrada");
+  if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore) || homeScore < 0 || awayScore < 0) {
+    throw new ApiError(400, "Placar inválido");
+  }
+  if (getResult(matchId)) throw new ApiError(409, "Resultado já registrado para esta partida");
+
+  const outcome = homeScore > awayScore ? "home" : homeScore < awayScore ? "away" : "draw";
+
+  let settled = { won: 0, lost: 0, paidCents: 0 };
+  db.transaction(() => {
+    db.prepare(
+      "INSERT INTO match_results (match_id, home_score, away_score, outcome, source) VALUES (?, ?, ?, ?, ?)"
+    ).run(matchId, homeScore, awayScore, outcome, source);
+
+    const pending = db
+      .prepare("SELECT * FROM sport_bets WHERE match_id = ? AND status = 'pending'")
+      .all(matchId);
+
+    for (const bet of pending) {
+      const won = bet.pick === outcome;
+      db.prepare(
+        "UPDATE sport_bets SET status = ?, settled_at = datetime('now') WHERE id = ?"
+      ).run(won ? "won" : "lost", bet.id);
+      if (won) {
+        applyEntries(bet.user_id, [
+          {
+            type: "win",
+            amountCents: bet.potential_win_cents,
+            meta: { sport: true, matchId, betId: bet.id },
+          },
+        ]);
+        settled.won++;
+        settled.paidCents += bet.potential_win_cents;
+      } else {
+        settled.lost++;
+      }
+    }
+  })();
+
+  return { matchId, homeScore, awayScore, outcome, ...settled };
+}
+
+/**
+ * Cron de liquidação: partidas encerradas sem resultado ganham um placar
+ * demo determinístico (seed = id da partida) e são liquidadas.
+ * Em produção, substitua por um feed esportivo (ex.: API-Football).
+ */
+export function settleFinishedMatches() {
+  const settledNow = [];
+  for (const m of MATCHES) {
+    if (matchStatus(m) !== "finished") continue;
+    if (getResult(m.id)) continue;
+    const seed = crypto.createHash("sha256").update(m.id).digest();
+    const homeScore = seed[0] % 4;
+    const awayScore = seed[1] % 4;
+    settledNow.push(setResult(m.id, homeScore, awayScore, "auto"));
+  }
+  return settledNow;
 }

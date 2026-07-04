@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YOSHI BET — Painel Administrativo</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='2' y='2' width='44' height='44' rx='13' fill='%23ffb800'/%3E%3Cpath d='M15 14l9 12v9M33 14l-9 12' stroke='%23241500' stroke-width='5.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .adm-wrap { max-width: 1200px; margin: 0 auto; padding: 26px 20px 60px; }
+    .adm-head { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
+    .adm-head h1 { font-size: 1.35rem; font-weight: 900; }
+    .adm-badge { background: var(--gold-soft); color: var(--gold); font-size: 0.66rem; font-weight: 800; letter-spacing: 1px; padding: 4px 10px; border-radius: 99px; }
+    .adm-head .btn { margin-left: auto; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 28px; }
+    .stat-tile { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 20px; }
+    .stat-tile .lbl { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.1px; color: var(--text-3); }
+    .stat-tile .val { font-size: 1.45rem; font-weight: 900; margin-top: 6px; letter-spacing: -0.4px; }
+    .stat-green .val { color: var(--green); }
+    .stat-gold .val { color: var(--gold); }
+    .adm-section { margin-bottom: 30px; }
+    .adm-section h2 { font-size: 1rem; font-weight: 800; margin-bottom: 12px; }
+    .adm-table-wrap { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-lg); overflow-x: auto; }
+    .adm-table { width: 100%; border-collapse: collapse; font-size: 0.83rem; min-width: 640px; }
+    .adm-table th { text-align: left; padding: 11px 16px; color: var(--text-3); font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    .adm-table td { padding: 10px 16px; border-bottom: 1px solid var(--border); font-weight: 600; white-space: nowrap; }
+    .adm-table tr:last-child td { border-bottom: none; }
+    .adm-table tbody tr:hover { background: var(--surface); }
+    .score-form { display: inline-flex; gap: 6px; align-items: center; }
+    .score-form input { width: 46px; background: var(--bg); border: 1px solid var(--border-strong); border-radius: var(--r-sm); padding: 7px 8px; color: var(--text); font-family: inherit; font-weight: 700; text-align: center; }
+    .score-form .btn { padding: 7px 12px; font-size: 0.76rem; }
+    .adm-gate { max-width: 420px; margin: 12vh auto; text-align: center; padding: 0 20px; }
+    .adm-gate .modal { position: static; max-width: none; }
+    .tx-pos { color: var(--green); font-weight: 800; }
+    .tx-neg { color: var(--red); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <!-- Gate: pede login de admin -->
+  <div class="adm-gate hidden" id="admGate">
+    <div class="modal">
+      <h2>Painel Administrativo 🔐</h2>
+      <p class="modal-sub">Entre com uma conta de administrador</p>
+      <form id="admLoginForm" class="form">
+        <label>E-mail<input type="email" id="admEmail" required placeholder="admin@yoshibet.com" /></label>
+        <label>Senha<input type="password" id="admPass" required minlength="4" /></label>
+        <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+      </form>
+      <p class="modal-foot"><a href="/">‹ Voltar para a plataforma</a></p>
+    </div>
+  </div>
+
+  <!-- Painel -->
+  <div class="adm-wrap hidden" id="admPanel">
+    <div class="adm-head">
+      <svg width="34" height="34" viewBox="0 0 48 48" aria-hidden="true"><rect x="2" y="2" width="44" height="44" rx="13" fill="#ffb800"/><path d="M15 14l9 12v9M33 14l-9 12" stroke="#241500" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      <h1>YOSHI BET</h1>
+      <span class="adm-badge">ADMIN</span>
+      <a class="btn btn-ghost" href="/">Ver plataforma</a>
+      <button class="btn btn-ghost btn-danger" id="admLogout">Sair</button>
+    </div>
+
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <section class="adm-section">
+      <h2>⚽ Copa 2026 — resultados e liquidação</h2>
+      <div class="adm-table-wrap">
+        <table class="adm-table">
+          <thead><tr><th>Partida</th><th>Início</th><th>Status</th><th>Apostas</th><th>Volume</th><th>Resultado</th></tr></thead>
+          <tbody id="matchesBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="adm-section">
+      <h2>👥 Usuários</h2>
+      <div class="adm-table-wrap">
+        <table class="adm-table">
+          <thead><tr><th>ID</th><th>Usuário</th><th>E-mail</th><th>Saldo</th><th>Depositado</th><th>Rodadas</th><th>Apostas</th><th>Criado em</th></tr></thead>
+          <tbody id="usersBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="adm-section">
+      <h2>🧾 Últimas movimentações</h2>
+      <div class="adm-table-wrap">
+        <table class="adm-table">
+          <thead><tr><th>ID</th><th>Usuário</th><th>Tipo</th><th>Valor</th><th>Quando</th></tr></thead>
+          <tbody id="txBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+  <script src="js/admin.js"></script>
+</body>
+</html>

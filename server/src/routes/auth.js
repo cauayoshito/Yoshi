@@ -1,12 +1,13 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { db } from "../db.js";
+import { config } from "../config.js";
 import { signToken, requireAuth } from "../middleware/auth.js";
 import { ApiError, wrap } from "../middleware/error.js";
 
 export const authRouter = Router();
 
-const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, balanceCents: u.balance_cents });
+const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, balanceCents: u.balance_cents, role: u.role });
 
 authRouter.post("/register", wrap(async (req, res) => {
   const { name, email, password } = req.body || {};
@@ -18,9 +19,10 @@ authRouter.post("/register", wrap(async (req, res) => {
   if (exists) throw new ApiError(409, "Este e-mail já está cadastrado");
 
   const hash = await bcrypt.hash(String(password), 10);
+  const role = String(email).trim().toLowerCase() === config.adminEmail ? "admin" : "user";
   const info = db
-    .prepare("INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)")
-    .run(String(name).trim(), String(email).trim(), hash);
+    .prepare("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, ?)")
+    .run(String(name).trim(), String(email).trim(), hash, role);
 
   const user = db.prepare("SELECT * FROM users WHERE id = ?").get(info.lastInsertRowid);
   res.status(201).json({ token: signToken(user.id), user: publicUser(user) });

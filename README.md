@@ -16,7 +16,7 @@ npm start
 # abra http://localhost:3000
 ```
 
-Testes do backend (19 casos, sem dependência extra — `node:test`):
+Testes do backend (24 casos, sem dependência extra — `node:test`):
 
 ```bash
 cd server && npm test
@@ -64,6 +64,20 @@ cd server && npm test
 - **Bônus de 1º depósito** — 100% até R$ 500, idempotente (webhook duplicado
   não credita duas vezes).
 
+## 🛠️ Painel administrativo
+
+Cadastre-se com o e-mail definido em `ADMIN_EMAIL` (padrão `admin@yoshibet.com`)
+e acesse **`/admin.html`**: métricas (depósitos, saques, GGR, saldo dos jogadores),
+lista de usuários, últimas movimentações e **liquidação da Copa** — registre o
+placar e as apostas pendentes são pagas na hora. Partidas encerradas sem placar
+são liquidadas automaticamente pelo cron do servidor (a cada 60s, placar demo
+determinístico — em produção, plugue um feed esportivo).
+
+## 🚀 Deploy
+
+Pronto para publicar: `Dockerfile` + `render.yaml` inclusos.
+Passo a passo para **Railway, Render, VPS ou Node puro** em [`DEPLOY.md`](DEPLOY.md).
+
 ## 📡 API
 
 Autenticação: `Authorization: Bearer <token>` (JWT, 7 dias).
@@ -89,6 +103,12 @@ Autenticação: `Authorization: Bearer <token>` (JWT, 7 dias).
 | GET | `/api/sports/matches` | Copa 2026: partidas, odds e status (upcoming/live/finished) |
 | POST | `/api/sports/bet` | Aposta esportiva `{matchId,pick,stakeCents}` — odds do servidor |
 | GET | `/api/sports/bets` | Minhas apostas esportivas |
+| GET | `/api/admin/stats` | (admin) Métricas: usuários, depósitos, GGR |
+| GET | `/api/admin/users` | (admin) Usuários com saldos e volumes |
+| GET | `/api/admin/activity` | (admin) Últimas movimentações |
+| GET | `/api/admin/matches` | (admin) Partidas com volume apostado |
+| POST | `/api/admin/matches/:id/result` | (admin) Registra placar e liquida apostas |
+| POST | `/api/admin/settle` | (admin) Força a liquidação automática |
 
 Limites (config via `.env`): depósito R$ 20–10.000 · aposta R$ 0,50–50 · saque mín. R$ 20.
 

@@ -16,6 +16,7 @@ db.exec(`
     email         TEXT NOT NULL UNIQUE COLLATE NOCASE,
     password_hash TEXT NOT NULL,
     balance_cents INTEGER NOT NULL DEFAULT 0 CHECK (balance_cents >= 0),
+    role          TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user','admin')),
     created_at    TEXT NOT NULL DEFAULT (datetime('now'))
   );
 
@@ -80,4 +81,19 @@ db.exec(`
     settled_at          TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_sport_bets_user ON sport_bets(user_id, id DESC);
+
+  -- Resultados das partidas (alimenta a liquidação automática)
+  CREATE TABLE IF NOT EXISTS match_results (
+    match_id   TEXT PRIMARY KEY,
+    home_score INTEGER NOT NULL,
+    away_score INTEGER NOT NULL,
+    outcome    TEXT NOT NULL CHECK (outcome IN ('home','draw','away')),
+    source     TEXT NOT NULL DEFAULT 'auto',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
 `);
+
+// Migração leve para bancos criados antes da coluna role
+try {
+  db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user'");
+} catch { /* coluna já existe */ }
