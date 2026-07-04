@@ -40,6 +40,7 @@ cd server && npm test
     │   ├── routes/       # auth, wallet, games
     │   ├── services/     # wallet, pix, slot, mines
     │   └── data/games.json  # Catálogo servido em /api/games
+    ├── scripts/seed.js   # Dados demo para o dashboard
     └── test/api.test.js  # Suíte de integração da API
 ```
 
@@ -67,11 +68,23 @@ cd server && npm test
 ## 🛠️ Painel administrativo
 
 Cadastre-se com o e-mail definido em `ADMIN_EMAIL` (padrão `admin@yoshibet.com`)
-e acesse **`/admin.html`**: métricas (depósitos, saques, GGR, saldo dos jogadores),
-lista de usuários, últimas movimentações e **liquidação da Copa** — registre o
-placar e as apostas pendentes são pagas na hora. Partidas encerradas sem placar
-são liquidadas automaticamente pelo cron do servidor (a cada 60s, placar demo
-determinístico — em produção, plugue um feed esportivo).
+e acesse **`/admin.html`** — um dashboard completo:
+
+- **KPIs do período** (7/14/30 dias) com variação vs período anterior e sparklines:
+  depósitos, GGR, novos usuários e saldo dos jogadores
+- **Gráficos SVG sem dependências**: fluxo financeiro diário (depósitos × saques,
+  com crosshair e tooltip), GGR diário em barras divergentes e donut de volume
+  por produto — paleta validada para daltonismo e contraste
+- **Top jogadores** por depósito e por receita para a casa
+- **Copa 2026**: volume apostado por partida e formulário de placar com
+  liquidação na hora; cron liquida sozinho partidas encerradas (60s)
+- **Usuários** com busca e **feed de movimentações**
+
+Para popular o dashboard com dados demo (42 usuários, ~800 rodadas, 14 dias):
+
+```bash
+cd server && npm run seed        # cria também admin@yoshibet.com / admin123
+```
 
 ## 🚀 Deploy
 

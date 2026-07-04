@@ -88,3 +88,112 @@ adminRouter.post("/matches/:id/result", wrap((req, res) => {
 adminRouter.post("/settle", wrap((_req, res) => {
   res.json({ settled: sports.settleFinishedMatches() });
 }));
+
+/**
+ * Série diária para os gráficos do dashboard.
+ * ?days=7|14|30 (padrão 14) — sempre devolve todos os dias, zerando os vazios.
+ */
+adminRouter.get("/timeseries", wrap((req, res) => {
+  const days = Math.min(90, Math.max(7, Number(req.query.days) || 14));
+  const since = `-${days - 1} days`;
+
+  const txRows = db.prepare(
+    `SELECT date(created_at) AS d, type, SUM(amount_cents) AS total
+     FROM transactions WHERE date(created_at) >= date('now', ?)
+     GROUP BY d, type`
+  ).all(since);
+
+  const roundRows = db.prepare(
+    `SELECT date(created_at) AS d, SUM(bet_cents) AS stake, SUM(win_cents) AS payout, COUNT(*) AS n
+     FROM rounds WHERE status='settled' AND date(created_at) >= date('now', ?)
+     GROUP BY d`
+  ).all(since);
+
+  const sportRows = db.prepare(
+    `SELECT date(created_at) AS d,
+            SUM(stake_cents) AS stake,
+            SUM(CASE WHEN status='won' THEN potential_win_cents ELSE 0 END) AS payout,
+            COUNT(*) AS n
+     FROM sport_bets WHERE date(created_at) >= date('now', ?)
+     GROUP BY d`
+  ).all(since);
+
+  const userRows = db.prepare(
+    `SELECT date(created_at) AS d, COUNT(*) AS n
+     FROM users WHERE date(created_at) >= date('now', ?)
+     GROUP BY d`
+  ).all(since);
+
+  const map = {};
+  const dayList = db.prepare(
+    `WITH RECURSIVE dates(d) AS (
+       SELECT date('now', ?) UNION ALL SELECT date(d, '+1 day') FROM dates WHERE d < date('now')
+     ) SELECT d FROM dates`
+  ).all(since);
+  for (const { d } of dayList) {
+    map[d] = {
+      date: d, depositsCents: 0, withdrawalsCents: 0,
+      casinoStakeCents: 0, casinoPayoutCents: 0, casinoRounds: 0,
+      sportStakeCents: 0, sportPayoutCents: 0, sportBets: 0, newUsers: 0,
+    };
+  }
+  for (const r of txRows) {
+    if (!map[r.d]) continue;
+    if (r.type === "deposit") map[r.d].depositsCents = r.total;
+    if (r.type === "withdraw") map[r.d].withdrawalsCents = Math.abs(r.total);
+  }
+  for (const r of roundRows) {
+    if (!map[r.d]) continue;
+    Object.assign(map[r.d], { casinoStakeCents: r.stake, casinoPayoutCents: r.payout, casinoRounds: r.n });
+  }
+  for (const r of sportRows) {
+    if (!map[r.d]) continue;
+    Object.assign(map[r.d], { sportStakeCents: r.stake, sportPayoutCents: r.payout, sportBets: r.n });
+  }
+  for (const r of userRows) {
+    if (map[r.d]) map[r.d].newUsers = r.n;
+  }
+
+  const series = Object.values(map).map((row) => ({
+    ...row,
+    ggrCents: row.casinoStakeCents - row.casinoPayoutCents + row.sportStakeCents - row.sportPayoutCents,
+  }));
+  res.json({ days, series });
+}));
+
+/** Volume e GGR por produto (Fortune Yoshi, Mines, Esportes). */
+adminRouter.get("/products", wrap((_req, res) => {
+  const casino = db.prepare(
+    `SELECT game, SUM(bet_cents) AS stake, SUM(win_cents) AS payout, COUNT(*) AS n
+     FROM rounds WHERE status='settled' GROUP BY game`
+  ).all();
+  const sport = db.prepare(
+    `SELECT SUM(stake_cents) AS stake,
+            SUM(CASE WHEN status='won' THEN potential_win_cents ELSE 0 END) AS payout,
+            COUNT(*) AS n
+     FROM sport_bets`
+  ).get();
+
+  const products = {};
+  for (const c of casino) {
+    products[c.game] = { stakeCents: c.stake || 0, payoutCents: c.payout || 0, count: c.n };
+  }
+  products.sports = { stakeCents: sport.stake || 0, payoutCents: sport.payout || 0, count: sport.n || 0 };
+  res.json({ products });
+}));
+
+/** Top jogadores por depósito e por resultado para a casa. */
+adminRouter.get("/top-players", wrap((_req, res) => {
+  const byDeposits = db.prepare(
+    `SELECT u.id, u.name, SUM(t.amount_cents) AS total_cents
+     FROM transactions t JOIN users u ON u.id = t.user_id
+     WHERE t.type='deposit' GROUP BY u.id ORDER BY total_cents DESC LIMIT 5`
+  ).all();
+  const byHouseProfit = db.prepare(
+    `SELECT u.id, u.name,
+            COALESCE(SUM(CASE WHEN t.type='bet' THEN -t.amount_cents WHEN t.type='win' THEN -t.amount_cents ELSE 0 END), 0) AS profit_cents
+     FROM transactions t JOIN users u ON u.id = t.user_id
+     WHERE t.type IN ('bet','win') GROUP BY u.id ORDER BY profit_cents DESC LIMIT 5`
+  ).all();
+  res.json({ byDeposits, byHouseProfit });
+}));
