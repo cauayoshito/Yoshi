@@ -1,45 +1,42 @@
-import { db } from "../db.js";
+import { pool, withTx } from "../db.js";
 import { ApiError } from "../middleware/error.js";
 
-const insertTx = db.prepare(
-  "INSERT INTO transactions (user_id, type, amount_cents, meta) VALUES (?, ?, ?, ?)"
-);
-const updateBalance = db.prepare(
-  "UPDATE users SET balance_cents = balance_cents + ? WHERE id = ?"
-);
-const getBalanceStmt = db.prepare("SELECT balance_cents FROM users WHERE id = ?");
-
-export function getBalance(userId) {
-  return getBalanceStmt.get(userId).balance_cents;
+export async function getBalance(userId, client = pool) {
+  const { rows } = await client.query("SELECT balance_cents FROM users WHERE id = $1", [userId]);
+  return rows[0].balance_cents;
 }
 
 /**
  * Aplica um conjunto de movimentações de forma atômica.
  * entries: [{ type, amountCents, meta? }] — débito é negativo.
- * Lança 400 se o saldo ficaria negativo (CHECK do SQLite garante no banco).
+ * O CHECK (balance_cents >= 0) no banco garante que saldo nunca fica
+ * negativo, mesmo com requisições concorrentes.
+ * Passe um client de transação para compor com outras escritas.
  */
-export const applyEntries = db.transaction((userId, entries) => {
+export async function applyEntries(userId, entries, client = null) {
+  if (!client) return withTx((c) => applyEntries(userId, entries, c));
+
   let delta = 0;
   for (const e of entries) {
-    insertTx.run(userId, e.type, e.amountCents, e.meta ? JSON.stringify(e.meta) : null);
+    await client.query(
+      "INSERT INTO transactions (user_id, type, amount_cents, meta) VALUES ($1, $2, $3, $4)",
+      [userId, e.type, e.amountCents, e.meta ?? null]
+    );
     delta += e.amountCents;
   }
   try {
-    updateBalance.run(delta, userId);
+    await client.query("UPDATE users SET balance_cents = balance_cents + $1 WHERE id = $2", [delta, userId]);
   } catch (err) {
-    if (String(err.message).includes("CHECK")) {
-      throw new ApiError(400, "Saldo insuficiente");
-    }
+    if (err.code === "23514") throw new ApiError(400, "Saldo insuficiente"); // check_violation
     throw err;
   }
-  return getBalance(userId);
-});
+  return getBalance(userId, client);
+}
 
-export function listTransactions(userId, limit = 30) {
-  return db
-    .prepare(
-      "SELECT id, type, amount_cents, meta, created_at FROM transactions WHERE user_id = ? ORDER BY id DESC LIMIT ?"
-    )
-    .all(userId, limit)
-    .map((t) => ({ ...t, meta: t.meta ? JSON.parse(t.meta) : null }));
+export async function listTransactions(userId, limit = 30) {
+  const { rows } = await pool.query(
+    "SELECT id, type, amount_cents, meta, created_at FROM transactions WHERE user_id = $1 ORDER BY id DESC LIMIT $2",
+    [userId, limit]
+  );
+  return rows;
 }

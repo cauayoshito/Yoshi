@@ -1,19 +1,22 @@
 # 🐲 YOSHI BET — Plataforma iGaming (Full-Stack)
 
 Plataforma de cassino online no estilo das grandes casas brasileiras (tema escuro,
-verde neon + dourado, PIX, bônus de boas-vindas), com **front-end** em HTML/CSS/JS puros (ícones [Twemoji](https://github.com/jdecked/twemoji) CC-BY 4.0) e **backend** Node.js + Express + SQLite com autenticação JWT, carteira
-transacional e jogos rodando no servidor.
+verde neon + dourado, PIX, bônus de boas-vindas), com **front-end** em HTML/CSS/JS puros (ícones [Twemoji](https://github.com/jdecked/twemoji) CC-BY 4.0) e **backend** Node.js + Express + **Postgres (Supabase)** com autenticação JWT,
+carteira transacional e jogos rodando no servidor. Roda serverless na Vercel
+ou como servidor persistente (Railway/Render/Docker).
 
 > ⚠️ **Projeto demonstrativo.** Nenhuma aposta com dinheiro real é realizada.
 > O PIX é simulado (payload EMV real, pagamento auto-confirmado).
 
 ## 🚀 Como rodar
 
+Precisa de um Postgres (local ou Supabase) em `DATABASE_URL`:
+
 ```bash
 cd server
 npm install
-npm start
-# abra http://localhost:3000
+DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:5432/yoshibet npm start
+# abra http://localhost:3000 — o schema é criado sozinho no primeiro boot
 ```
 
 Testes do backend (24 casos, sem dependência extra — `node:test`):
@@ -35,7 +38,7 @@ cd server && npm test
     │   ├── index.js      # Bootstrap HTTP
     │   ├── app.js        # Express: rotas, rate-limit, estáticos
     │   ├── config.js     # Config via .env (veja .env.example)
-    │   ├── db.js         # SQLite (better-sqlite3) + schema
+    │   ├── db.js         # Postgres (pg) + migração idempotente
     │   ├── middleware/   # JWT (auth.js) e erros (error.js)
     │   ├── routes/       # auth, wallet, games
     │   ├── services/     # wallet, pix, slot, mines
@@ -48,8 +51,9 @@ cd server && npm test
 
 - **Dinheiro em centavos (INTEGER)** — nada de float para valores monetários.
 - **Livro-razão (`transactions`)** — todo crédito/débito vira lançamento; o saldo
-  é atualizado na mesma transação SQLite com `CHECK (balance_cents >= 0)`,
-  impossibilitando saldo negativo mesmo com requisições concorrentes.
+  é atualizado na mesma transação Postgres com `CHECK (balance_cents >= 0)` e
+  locks `FOR UPDATE`, impossibilitando saldo negativo ou crédito duplo mesmo
+  com requisições concorrentes.
 - **RNG no servidor** — o resultado do slot e as bombas do Mines nunca existem
   no cliente. `crypto.randomInt` (CSPRNG do Node).
 - **Provably fair** — cada rodada tem `server_seed`; o SHA-256 dele é entregue
@@ -88,8 +92,9 @@ cd server && npm run seed        # cria também admin@yoshibet.com / admin123
 
 ## 🚀 Deploy
 
-Pronto para publicar: `Dockerfile` + `render.yaml` inclusos.
-Passo a passo para **Railway, Render, VPS ou Node puro** em [`DEPLOY.md`](DEPLOY.md).
+**Vercel + Supabase** (serverless, recomendado) ou Railway/Render/Docker —
+`vercel.json`, `Dockerfile` e `render.yaml` inclusos.
+Passo a passo em [`DEPLOY.md`](DEPLOY.md).
 
 ## 📡 API
 
@@ -127,7 +132,7 @@ Limites (config via `.env`): depósito R$ 20–10.000 · aposta R$ 0,50–50 · 
 
 ## 🔜 Próximos passos (para produção de verdade)
 
-- Postgres no lugar do SQLite + migrações versionadas
+- Migrações versionadas (hoje o schema é idempotente no boot)
 - Gateway PIX real (PSP autorizado pelo BACEN) com webhook assinado
 - Integração com agregadores de jogos licenciados (a estrutura de rounds já suporta)
 - KYC/verificação de idade, limites de jogo responsável e autoexclusão

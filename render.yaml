@@ -1,17 +1,14 @@
 # Deploy no Render (https://render.com) — blueprint
-# 1. Suba este repositório no GitHub
-# 2. Render → New → Blueprint → aponte para o repo
+# O banco é Postgres (Supabase): preencha DATABASE_URL ao criar.
 services:
   - type: web
     name: yoshibet
     runtime: docker
-    plan: starter          # o plano free não tem disco persistente
+    plan: free
     healthCheckPath: /api/health
-    disk:
-      name: yoshibet-data
-      mountPath: /data
-      sizeGB: 1
     envVars:
+      - key: DATABASE_URL
+        sync: false
       - key: JWT_SECRET
         generateValue: true
       - key: ADMIN_EMAIL

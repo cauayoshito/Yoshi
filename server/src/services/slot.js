@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { db } from "../db.js";
+import { withTx } from "../db.js";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/error.js";
 import { applyEntries } from "./wallet.js";
@@ -35,7 +35,7 @@ function validateBet(betCents) {
   }
 }
 
-export function spin(userId, betCents) {
+export async function spin(userId, betCents) {
   validateBet(betCents);
 
   const serverSeed = crypto.randomBytes(16).toString("hex");
@@ -56,17 +56,22 @@ export function spin(userId, betCents) {
   }
   const winCents = betCents * totalMult;
 
-  let balanceCents;
-  db.transaction(() => {
-    balanceCents = applyEntries(userId, [
-      { type: "bet", amountCents: -betCents, meta: { game: "slot" } },
-      ...(winCents > 0 ? [{ type: "win", amountCents: winCents, meta: { game: "slot" } }] : []),
-    ]);
-    db.prepare(
+  const balanceCents = await withTx(async (client) => {
+    const balance = await applyEntries(
+      userId,
+      [
+        { type: "bet", amountCents: -betCents, meta: { game: "slot" } },
+        ...(winCents > 0 ? [{ type: "win", amountCents: winCents, meta: { game: "slot" } }] : []),
+      ],
+      client
+    );
+    await client.query(
       `INSERT INTO rounds (user_id, game, bet_cents, win_cents, status, detail, server_seed, seed_hash, settled_at)
-       VALUES (?, 'slot', ?, ?, 'settled', ?, ?, ?, datetime('now'))`
-    ).run(userId, betCents, winCents, JSON.stringify({ grid, winningLines }), serverSeed, seedHash);
-  })();
+       VALUES ($1, 'slot', $2, $3, 'settled', $4, $5, $6, now())`,
+      [userId, betCents, winCents, { grid, winningLines }, serverSeed, seedHash]
+    );
+    return balance;
+  });
 
   return {
     grid,

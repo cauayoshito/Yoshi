@@ -7,10 +7,10 @@ import { createCharge, confirmCharge, getCharge, requestWithdrawal } from "../se
 export const walletRouter = Router();
 walletRouter.use(requireAuth);
 
-walletRouter.get("/", wrap((req, res) => {
+walletRouter.get("/", wrap(async (req, res) => {
   res.json({
-    balanceCents: getBalance(req.user.id),
-    transactions: listTransactions(req.user.id),
+    balanceCents: await getBalance(req.user.id),
+    transactions: await listTransactions(req.user.id),
   });
 }));
 
@@ -21,23 +21,23 @@ walletRouter.post("/deposit", wrap(async (req, res) => {
 }));
 
 /** Consulta o status da cobrança — o front faz polling até 'paid'. */
-walletRouter.get("/deposit/:txid", wrap((req, res) => {
-  const charge = getCharge(req.user.id, req.params.txid);
-  res.json({ ...charge, balanceCents: getBalance(req.user.id) });
+walletRouter.get("/deposit/:txid", wrap(async (req, res) => {
+  const charge = await getCharge(req.user.id, req.params.txid);
+  res.json({ ...charge, balanceCents: await getBalance(req.user.id) });
 }));
 
 /**
  * Webhook do PSP (demo). Em produção este endpoint seria chamado pelo
  * provedor de pagamento com assinatura verificada — nunca pelo cliente.
  */
-walletRouter.post("/deposit/:txid/webhook", wrap((req, res) => {
-  getCharge(req.user.id, req.params.txid); // garante que a cobrança é do usuário
-  const charge = confirmCharge(req.params.txid);
-  res.json({ ...charge, balanceCents: getBalance(req.user.id) });
+walletRouter.post("/deposit/:txid/webhook", wrap(async (req, res) => {
+  await getCharge(req.user.id, req.params.txid); // garante que a cobrança é do usuário
+  const charge = await confirmCharge(req.params.txid);
+  res.json({ ...charge, balanceCents: await getBalance(req.user.id) });
 }));
 
-walletRouter.post("/withdraw", wrap((req, res) => {
+walletRouter.post("/withdraw", wrap(async (req, res) => {
   const amountCents = Math.round(Number(req.body?.amountCents));
-  const withdrawal = requestWithdrawal(req.user.id, amountCents, req.body?.pixKey);
-  res.status(201).json({ withdrawal, balanceCents: getBalance(req.user.id) });
+  const withdrawal = await requestWithdrawal(req.user.id, amountCents, req.body?.pixKey);
+  res.status(201).json({ withdrawal, balanceCents: await getBalance(req.user.id) });
 }));

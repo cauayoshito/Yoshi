@@ -418,7 +418,7 @@
           <td>${fmt(u.deposited_cents)}</td>
           <td>${u.rounds_count}</td>
           <td>${u.sport_bets_count}</td>
-          <td>${u.created_at.slice(0, 16)}</td>
+          <td>${String(u.created_at).slice(0, 16).replace("T", " ")}</td>
         </tr>`
       )
       .join("") || '<tr><td colspan="8" class="muted">Nenhum usuário encontrado</td></tr>';
@@ -447,7 +447,7 @@
           <td>${t.user_name}</td>
           <td><span class="tx-type"><span class="tx-dot" style="background:${m.color}"></span>${m.label}</span></td>
           <td class="${t.amount_cents >= 0 ? "tx-pos" : "tx-neg"}">${t.amount_cents >= 0 ? "+" : ""}${fmt(t.amount_cents)}</td>
-          <td>${t.created_at.slice(0, 16)}</td>
+          <td>${String(t.created_at).slice(0, 16).replace("T", " ")}</td>
         </tr>`;
       })
       .join("");

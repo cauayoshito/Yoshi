@@ -1,29 +1,31 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs";
 
-// Banco isolado e webhook demo desligado (confirmamos manualmente no teste)
+// Banco isolado (Postgres local) e webhook demo desligado
 process.env.NODE_ENV = "test";
-process.env.DB_PATH = "data/test.db";
+process.env.DATABASE_URL =
+  process.env.TEST_DATABASE_URL || "postgresql://postgres:postgres@127.0.0.1:5432/yoshibet_test";
 process.env.ADMIN_EMAIL = "chefe@yoshibet.com";
 process.env.PIX_DEMO_AUTOCONFIRM_MS = "0";
 process.env.JWT_SECRET = "segredo-de-teste";
 
 const { createApp } = await import("../src/app.js");
-const { config } = await import("../src/config.js");
+const { pool, migrate } = await import("../src/db.js");
 
 let server, base, token;
 
 before(async () => {
-  fs.rmSync(config.dbPath, { force: true });
-  fs.rmSync(config.dbPath + "-wal", { force: true });
-  fs.rmSync(config.dbPath + "-shm", { force: true });
+  await pool.query("DROP SCHEMA public CASCADE; CREATE SCHEMA public;");
+  await migrate();
   server = createApp().listen(0);
   await new Promise((r) => server.once("listening", r));
   base = `http://127.0.0.1:${server.address().port}`;
 });
 
-after(() => server.close());
+after(async () => {
+  server.close();
+  await pool.end();
+});
 
 async function api(method, path, body) {
   const res = await fetch(base + path, {

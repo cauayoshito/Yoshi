@@ -1,15 +1,14 @@
 import crypto from "node:crypto";
 import QRCode from "qrcode";
 import { createStaticPix, hasError } from "pix-utils";
-import { db } from "../db.js";
-import { config } from "../config.js";
+import { pool, withTx } from "../db.js";
+import { config } from "./../config.js";
 import { ApiError } from "../middleware/error.js";
 import { applyEntries } from "./wallet.js";
 
 /**
- * Gera o payload EMV "copia e cola" do PIX usando a lib open-source
- * pix-utils (github.com/thalesog/pix-utils). Em produção, a cobrança
- * viria de um PSP autorizado pelo BACEN (PIX dinâmico com txid).
+ * Payload EMV "copia e cola" via pix-utils (github.com/thalesog/pix-utils).
+ * Em produção, a cobrança viria de um PSP autorizado pelo BACEN.
  */
 function buildBrCode(amountCents, txid) {
   const pix = createStaticPix({
@@ -33,18 +32,20 @@ export async function createCharge(userId, amountCents) {
 
   const txid = crypto.randomBytes(16).toString("hex");
   const brcode = buildBrCode(amountCents, txid);
-  db.prepare(
-    "INSERT INTO pix_charges (txid, user_id, amount_cents, brcode) VALUES (?, ?, ?, ?)"
-  ).run(txid, userId, amountCents, brcode);
+  await pool.query(
+    "INSERT INTO pix_charges (txid, user_id, amount_cents, brcode) VALUES ($1, $2, $3, $4)",
+    [txid, userId, amountCents, brcode]
+  );
 
-  // DEMO: simula o webhook do PSP confirmando o pagamento após alguns segundos.
-  if (config.pix.demoAutoconfirmMs > 0) {
+  // DEMO em servidor persistente: confirma sozinho após alguns segundos.
+  // No serverless (Vercel) o processo morre — a confirmação acontece de
+  // forma preguiçosa no polling do getCharge (abaixo).
+  if (config.pix.demoAutoconfirmMs > 0 && !config.isServerless) {
     setTimeout(() => {
-      try { confirmCharge(txid); } catch { /* já confirmada/expirada */ }
-    }, config.pix.demoAutoconfirmMs).unref();
+      confirmCharge(txid).catch(() => {});
+    }, config.pix.demoAutoconfirmMs).unref?.();
   }
 
-  // QR Code real e escaneável, gerado a partir do payload EMV
   const qrDataUrl = await QRCode.toDataURL(brcode, {
     margin: 1,
     width: 340,
@@ -55,41 +56,60 @@ export async function createCharge(userId, amountCents) {
 }
 
 /** Confirma a cobrança e credita saldo + bônus de primeiro depósito. Idempotente. */
-export function confirmCharge(txid) {
-  const charge = db.prepare("SELECT * FROM pix_charges WHERE txid = ?").get(txid);
-  if (!charge) throw new ApiError(404, "Cobrança não encontrada");
-  if (charge.status === "paid") return charge;
+export async function confirmCharge(txid) {
+  return withTx(async (client) => {
+    // Trava a cobrança para evitar crédito duplo em chamadas concorrentes
+    const { rows } = await client.query("SELECT * FROM pix_charges WHERE txid = $1 FOR UPDATE", [txid]);
+    const charge = rows[0];
+    if (!charge) throw new ApiError(404, "Cobrança não encontrada");
+    if (charge.status === "paid") return charge;
 
-  const isFirstDeposit = !db
-    .prepare("SELECT 1 FROM transactions WHERE user_id = ? AND type = 'deposit' LIMIT 1")
-    .get(charge.user_id);
-
-  const entries = [{ type: "deposit", amountCents: charge.amount_cents, meta: { txid } }];
-  if (isFirstDeposit && config.bonus.firstDepositPct > 0) {
-    const bonus = Math.min(
-      Math.floor((charge.amount_cents * config.bonus.firstDepositPct) / 100),
-      config.bonus.firstDepositCapCents
+    const { rows: dep } = await client.query(
+      "SELECT 1 FROM transactions WHERE user_id = $1 AND type = 'deposit' LIMIT 1",
+      [charge.user_id]
     );
-    if (bonus > 0) entries.push({ type: "bonus", amountCents: bonus, meta: { txid, reason: "first_deposit" } });
-  }
+    const isFirstDeposit = dep.length === 0;
 
-  db.transaction(() => {
-    db.prepare("UPDATE pix_charges SET status = 'paid', paid_at = datetime('now') WHERE txid = ?").run(txid);
-    applyEntries(charge.user_id, entries);
-  })();
+    const entries = [{ type: "deposit", amountCents: charge.amount_cents, meta: { txid } }];
+    if (isFirstDeposit && config.bonus.firstDepositPct > 0) {
+      const bonus = Math.min(
+        Math.floor((charge.amount_cents * config.bonus.firstDepositPct) / 100),
+        config.bonus.firstDepositCapCents
+      );
+      if (bonus > 0) entries.push({ type: "bonus", amountCents: bonus, meta: { txid, reason: "first_deposit" } });
+    }
 
-  return db.prepare("SELECT * FROM pix_charges WHERE txid = ?").get(txid);
+    await client.query("UPDATE pix_charges SET status = 'paid', paid_at = now() WHERE txid = $1", [txid]);
+    await applyEntries(charge.user_id, entries, client);
+
+    return { ...charge, status: "paid" };
+  });
 }
 
-export function getCharge(userId, txid) {
-  const charge = db
-    .prepare("SELECT txid, amount_cents, status, brcode, created_at, paid_at FROM pix_charges WHERE txid = ? AND user_id = ?")
-    .get(txid, userId);
+export async function getCharge(userId, txid) {
+  const { rows } = await pool.query(
+    `SELECT txid, amount_cents, status, brcode, created_at, paid_at,
+            EXTRACT(EPOCH FROM (now() - created_at)) * 1000 AS age_ms
+     FROM pix_charges WHERE txid = $1 AND user_id = $2`,
+    [txid, userId]
+  );
+  const charge = rows[0];
   if (!charge) throw new ApiError(404, "Cobrança não encontrada");
+
+  // DEMO serverless: confirma quando o polling encontra a cobrança "madura"
+  if (
+    charge.status === "pending" &&
+    config.pix.demoAutoconfirmMs > 0 &&
+    charge.age_ms >= config.pix.demoAutoconfirmMs
+  ) {
+    await confirmCharge(txid);
+    charge.status = "paid";
+  }
+  delete charge.age_ms;
   return charge;
 }
 
-export function requestWithdrawal(userId, amountCents, pixKey) {
+export async function requestWithdrawal(userId, amountCents, pixKey) {
   if (!Number.isInteger(amountCents) || amountCents < config.limits.minWithdrawCents) {
     throw new ApiError(400, `Saque mínimo: R$ ${(config.limits.minWithdrawCents / 100).toFixed(2)}`);
   }
@@ -97,16 +117,14 @@ export function requestWithdrawal(userId, amountCents, pixKey) {
     throw new ApiError(400, "Informe uma chave PIX válida");
   }
 
-  let withdrawalId;
-  db.transaction(() => {
-    applyEntries(userId, [{ type: "withdraw", amountCents: -amountCents, meta: { pixKey } }]);
-    const info = db
-      .prepare("INSERT INTO withdrawals (user_id, amount_cents, pix_key, status, paid_at) VALUES (?, ?, ?, 'paid', datetime('now'))")
-      .run(userId, amountCents, String(pixKey).trim());
-    withdrawalId = info.lastInsertRowid;
-  })();
-
-  // DEMO: saque marcado como pago na hora. Em produção ficaria 'pending'
-  // até o PSP executar a transferência.
-  return db.prepare("SELECT * FROM withdrawals WHERE id = ?").get(withdrawalId);
+  return withTx(async (client) => {
+    await applyEntries(userId, [{ type: "withdraw", amountCents: -amountCents, meta: { pixKey } }], client);
+    // DEMO: pago na hora. Em produção ficaria 'pending' até o PSP transferir.
+    const { rows } = await client.query(
+      `INSERT INTO withdrawals (user_id, amount_cents, pix_key, status, paid_at)
+       VALUES ($1, $2, $3, 'paid', now()) RETURNING *`,
+      [userId, amountCents, String(pixKey).trim()]
+    );
+    return rows[0];
+  });
 }

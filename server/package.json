@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
-    "better-sqlite3": "^12.2.0",
     "compression": "^1.8.1",
     "cors": "^2.8.5",
     "dotenv": "^17.2.0",
@@ -22,6 +21,7 @@
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.11.0",
+    "pg": "^8.22.0",
     "pix-utils": "^2.7.0",
     "qrcode": "^1.5.4"
   }

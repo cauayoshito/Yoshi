@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
-import { db } from "../db.js";
+import { pool, withTx } from "../db.js";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/error.js";
 import { applyEntries } from "./wallet.js";
@@ -23,28 +23,31 @@ function matchStatus(m, now = Date.now()) {
   return "finished";
 }
 
-export function listMatches() {
+async function getResult(matchId, client = pool) {
+  const { rows } = await client.query("SELECT * FROM match_results WHERE match_id = $1", [matchId]);
+  return rows[0] || null;
+}
+
+export async function listMatches() {
   const now = Date.now();
+  const { rows: results } = await pool.query("SELECT * FROM match_results");
+  const byId = Object.fromEntries(results.map((r) => [r.match_id, r]));
   return MATCHES.map((m) => ({
     ...m,
     status: matchStatus(m, now),
-    result: getResult(m.id) || null,
+    result: byId[m.id] || null,
   }));
-}
-
-function getResult(matchId) {
-  return db.prepare("SELECT * FROM match_results WHERE match_id = ?").get(matchId);
 }
 
 export function getMatch(matchId) {
   return MATCHES.find((m) => m.id === matchId) || null;
 }
 
-export function placeBet(userId, matchId, pick, stakeCents) {
+export async function placeBet(userId, matchId, pick, stakeCents) {
   const match = getMatch(matchId);
   if (!match) throw new ApiError(404, "Partida não encontrada");
   if (!PICKS.includes(pick)) throw new ApiError(400, "Escolha inválida (home, draw ou away)");
-  if (matchStatus(match) === "finished" || getResult(matchId)) {
+  if (matchStatus(match) === "finished" || (await getResult(matchId))) {
     throw new ApiError(400, "Mercado encerrado para esta partida");
   }
   if (
@@ -62,37 +65,27 @@ export function placeBet(userId, matchId, pick, stakeCents) {
   const odds = match.odds[pick];
   const potentialWinCents = Math.floor(stakeCents * odds);
 
-  let betId, balanceCents;
-  db.transaction(() => {
-    balanceCents = applyEntries(userId, [
-      { type: "bet", amountCents: -stakeCents, meta: { sport: true, matchId, pick } },
-    ]);
-    const info = db
-      .prepare(
-        `INSERT INTO sport_bets (user_id, match_id, pick, odds, stake_cents, potential_win_cents)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .run(userId, matchId, pick, odds, stakeCents, potentialWinCents);
-    betId = info.lastInsertRowid;
-  })();
-
-  return {
-    bet: getBet(userId, betId),
-    balanceCents,
-  };
+  return withTx(async (client) => {
+    const balanceCents = await applyEntries(
+      userId,
+      [{ type: "bet", amountCents: -stakeCents, meta: { sport: true, matchId, pick } }],
+      client
+    );
+    const { rows } = await client.query(
+      `INSERT INTO sport_bets (user_id, match_id, pick, odds, stake_cents, potential_win_cents)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [userId, matchId, pick, odds, stakeCents, potentialWinCents]
+    );
+    return { bet: decorate(rows[0]), balanceCents };
+  });
 }
 
-function getBet(userId, betId) {
-  return decorate(
-    db.prepare("SELECT * FROM sport_bets WHERE id = ? AND user_id = ?").get(betId, userId)
+export async function listBets(userId, limit = 20) {
+  const { rows } = await pool.query(
+    "SELECT * FROM sport_bets WHERE user_id = $1 ORDER BY id DESC LIMIT $2",
+    [userId, limit]
   );
-}
-
-export function listBets(userId, limit = 20) {
-  return db
-    .prepare("SELECT * FROM sport_bets WHERE user_id = ? ORDER BY id DESC LIMIT ?")
-    .all(userId, limit)
-    .map(decorate);
+  return rows.map(decorate);
 }
 
 function decorate(bet) {
@@ -110,48 +103,54 @@ function decorate(bet) {
  * em uma única transação: vencedores recebem o retorno potencial no
  * livro-razão; perdedores são marcados como 'lost'. Idempotente.
  */
-export function setResult(matchId, homeScore, awayScore, source = "admin") {
+export async function setResult(matchId, homeScore, awayScore, source = "admin") {
   const match = getMatch(matchId);
   if (!match) throw new ApiError(404, "Partida não encontrada");
   if (!Number.isInteger(homeScore) || !Number.isInteger(awayScore) || homeScore < 0 || awayScore < 0) {
     throw new ApiError(400, "Placar inválido");
   }
-  if (getResult(matchId)) throw new ApiError(409, "Resultado já registrado para esta partida");
 
   const outcome = homeScore > awayScore ? "home" : homeScore < awayScore ? "away" : "draw";
 
-  let settled = { won: 0, lost: 0, paidCents: 0 };
-  db.transaction(() => {
-    db.prepare(
-      "INSERT INTO match_results (match_id, home_score, away_score, outcome, source) VALUES (?, ?, ?, ?, ?)"
-    ).run(matchId, homeScore, awayScore, outcome, source);
+  return withTx(async (client) => {
+    // INSERT com PK garante idempotência mesmo em corrida
+    try {
+      await client.query(
+        "INSERT INTO match_results (match_id, home_score, away_score, outcome, source) VALUES ($1, $2, $3, $4, $5)",
+        [matchId, homeScore, awayScore, outcome, source]
+      );
+    } catch (err) {
+      if (err.code === "23505") throw new ApiError(409, "Resultado já registrado para esta partida");
+      throw err;
+    }
 
-    const pending = db
-      .prepare("SELECT * FROM sport_bets WHERE match_id = ? AND status = 'pending'")
-      .all(matchId);
+    const { rows: pending } = await client.query(
+      "SELECT * FROM sport_bets WHERE match_id = $1 AND status = 'pending' FOR UPDATE",
+      [matchId]
+    );
 
+    const settled = { won: 0, lost: 0, paidCents: 0 };
     for (const bet of pending) {
       const won = bet.pick === outcome;
-      db.prepare(
-        "UPDATE sport_bets SET status = ?, settled_at = datetime('now') WHERE id = ?"
-      ).run(won ? "won" : "lost", bet.id);
+      await client.query("UPDATE sport_bets SET status = $1, settled_at = now() WHERE id = $2", [
+        won ? "won" : "lost",
+        bet.id,
+      ]);
       if (won) {
-        applyEntries(bet.user_id, [
-          {
-            type: "win",
-            amountCents: bet.potential_win_cents,
-            meta: { sport: true, matchId, betId: bet.id },
-          },
-        ]);
+        await applyEntries(
+          bet.user_id,
+          [{ type: "win", amountCents: bet.potential_win_cents, meta: { sport: true, matchId, betId: bet.id } }],
+          client
+        );
         settled.won++;
         settled.paidCents += bet.potential_win_cents;
       } else {
         settled.lost++;
       }
     }
-  })();
 
-  return { matchId, homeScore, awayScore, outcome, ...settled };
+    return { matchId, homeScore, awayScore, outcome, ...settled };
+  });
 }
 
 /**
@@ -159,15 +158,19 @@ export function setResult(matchId, homeScore, awayScore, source = "admin") {
  * demo determinístico (seed = id da partida) e são liquidadas.
  * Em produção, substitua por um feed esportivo (ex.: API-Football).
  */
-export function settleFinishedMatches() {
+export async function settleFinishedMatches() {
   const settledNow = [];
   for (const m of MATCHES) {
     if (matchStatus(m) !== "finished") continue;
-    if (getResult(m.id)) continue;
+    if (await getResult(m.id)) continue;
     const seed = crypto.createHash("sha256").update(m.id).digest();
     const homeScore = seed[0] % 4;
     const awayScore = seed[1] % 4;
-    settledNow.push(setResult(m.id, homeScore, awayScore, "auto"));
+    try {
+      settledNow.push(await setResult(m.id, homeScore, awayScore, "auto"));
+    } catch (err) {
+      if (err.status !== 409) throw err; // 409 = outro processo liquidou antes
+    }
   }
   return settledNow;
 }

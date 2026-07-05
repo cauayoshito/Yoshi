@@ -8,9 +8,11 @@ export const config = {
   port: Number(process.env.PORT || 3000),
   jwtSecret: process.env.JWT_SECRET || "dev-secret-nao-use-em-producao",
   jwtExpiresIn: "7d",
-  dbPath: process.env.DB_PATH
-    ? path.resolve(__dirname, "..", process.env.DB_PATH)
-    : path.resolve(__dirname, "..", "data", "yoshibet.db"),
+  databaseUrl:
+    process.env.DATABASE_URL ||
+    "postgresql://postgres:postgres@127.0.0.1:5432/yoshibet",
+  isServerless: !!process.env.VERCEL,
+  cronSecret: process.env.CRON_SECRET || "",
 
   pix: {
     key: process.env.PIX_KEY || "pagamentos@yoshibet.com.br",
