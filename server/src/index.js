@@ -2,8 +2,10 @@ import { createApp } from "./app.js";
 import { config } from "./config.js";
 import { migrate } from "./db.js";
 import { settleFinishedMatches } from "./services/sports.js";
+import { ensureGames, snapshotRtp } from "./services/slots.js";
 
 await migrate();
+await ensureGames();
 
 const app = createApp();
 
@@ -20,6 +22,9 @@ async function runSettlement() {
 }
 runSettlement();
 setInterval(runSettlement, 60_000).unref();
+
+// Snapshot de RTP por jogo a cada hora (trilha de auditoria)
+setInterval(() => snapshotRtp("cron").catch(() => {}), 3_600_000).unref();
 
 app.listen(config.port, () => {
   console.log(`🐲 YOSHI BET rodando em http://localhost:${config.port}`);

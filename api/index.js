@@ -4,8 +4,11 @@
  */
 import { createApp } from "../server/src/app.js";
 import { migrate } from "../server/src/db.js";
+import { ensureGames } from "../server/src/services/slots.js";
 
-const ready = migrate().then(() => createApp());
+const ready = migrate()
+  .then(() => ensureGames())
+  .then(() => createApp());
 
 export default async function handler(req, res) {
   const app = await ready;

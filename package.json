@@ -7,7 +7,7 @@
     "node": ">=20"
   },
   "scripts": {
-    "build": "npm ci --omit=dev --prefix server",
+    "build": "npm ci --omit=dev --prefix server && npm ci --prefix packages/slots-engine && npm run build --prefix packages/slots-engine",
     "start": "node server/src/index.js",
     "test": "npm test --prefix server",
     "seed": "npm run seed --prefix server"

@@ -11,7 +11,9 @@ import { walletRouter } from "./routes/wallet.js";
 import { gamesRouter } from "./routes/games.js";
 import { sportsRouter } from "./routes/sports.js";
 import { adminRouter } from "./routes/admin.js";
+import { slotsRouter, fairRouter } from "./routes/slots.js";
 import { settleFinishedMatches } from "./services/sports.js";
+import { snapshotRtp } from "./services/slots.js";
 
 export function createApp() {
   const app = express();
@@ -49,6 +51,8 @@ export function createApp() {
   app.use("/api/games", gamesRouter);
   app.use("/api/sports", sportsRouter);
   app.use("/api/admin", adminRouter);
+  app.use("/api/slots", slotsRouter);
+  app.use("/api/fair", fairRouter);
 
   // Vercel Cron chama esta rota (Authorization: Bearer CRON_SECRET)
   app.get("/api/cron/settle", wrap(async (req, res) => {
@@ -56,7 +60,10 @@ export function createApp() {
     if (config.cronSecret && auth !== `Bearer ${config.cronSecret}`) {
       return res.status(401).json({ error: "Não autorizado" });
     }
-    res.json({ settled: await settleFinishedMatches() });
+    res.json({
+      settled: await settleFinishedMatches(),
+      rtpSnapshots: await snapshotRtp("cron"),
+    });
   }));
 
   // Serve o front-end estático (raiz do repositório) — em servidor persistente.

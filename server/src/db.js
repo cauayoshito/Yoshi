@@ -115,6 +115,97 @@ export async function migrate() {
       source     TEXT NOT NULL DEFAULT 'auto',
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+
+    /* ============ Slots Engine (Bloco 2) ============ */
+
+    -- Catálogo de jogos da engine: config declarativa versionada
+    CREATE TABLE IF NOT EXISTS slot_games (
+      id         TEXT PRIMARY KEY,
+      name       TEXT NOT NULL,
+      config     JSONB NOT NULL,
+      version    INT NOT NULL DEFAULT 1,
+      active     BOOLEAN NOT NULL DEFAULT true,
+      updated_by TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+
+    -- Par de seeds provably fair por usuário (modelo Stake):
+    -- hash publicado antes; server_seed revelado só ao rotacionar.
+    CREATE TABLE IF NOT EXISTS fair_seeds (
+      id               BIGSERIAL PRIMARY KEY,
+      user_id          BIGINT NOT NULL REFERENCES users(id),
+      server_seed      TEXT NOT NULL,
+      server_seed_hash TEXT NOT NULL,
+      client_seed      TEXT NOT NULL,
+      nonce            BIGINT NOT NULL DEFAULT 0,
+      active           BOOLEAN NOT NULL DEFAULT true,
+      revealed_at      TIMESTAMPTZ,
+      created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_fair_seeds_active
+      ON fair_seeds(user_id) WHERE active;
+
+    -- Rodadas da engine: trilha de auditoria completa e verificável
+    CREATE TABLE IF NOT EXISTS slot_rounds (
+      id            BIGSERIAL PRIMARY KEY,
+      user_id       BIGINT NOT NULL REFERENCES users(id),
+      game_id       TEXT NOT NULL REFERENCES slot_games(id),
+      game_version  INT NOT NULL,
+      fair_seed_id  BIGINT NOT NULL REFERENCES fair_seeds(id),
+      nonce         BIGINT NOT NULL,
+      bet_cents     BIGINT NOT NULL,
+      payout_cents  BIGINT NOT NULL,
+      is_free_spin  BOOLEAN NOT NULL DEFAULT false,
+      result        JSONB NOT NULL,
+      created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_slot_rounds_user ON slot_rounds(user_id, id DESC);
+    CREATE INDEX IF NOT EXISTS idx_slot_rounds_game ON slot_rounds(game_id, id DESC);
+
+    -- Sessão por usuário+jogo: free spins pendentes e agregados
+    CREATE TABLE IF NOT EXISTS slot_sessions (
+      user_id           BIGINT NOT NULL REFERENCES users(id),
+      game_id           TEXT NOT NULL REFERENCES slot_games(id),
+      free_spins_left   INT NOT NULL DEFAULT 0,
+      free_spin_bet_cents BIGINT NOT NULL DEFAULT 0,
+      total_bet_cents   BIGINT NOT NULL DEFAULT 0,
+      total_payout_cents BIGINT NOT NULL DEFAULT 0,
+      rounds            BIGINT NOT NULL DEFAULT 0,
+      last_played_at    TIMESTAMPTZ,
+      PRIMARY KEY (user_id, game_id)
+    );
+
+    -- Snapshots de RTP para due diligence de operador/regulador
+    CREATE TABLE IF NOT EXISTS rtp_audit_log (
+      id                 BIGSERIAL PRIMARY KEY,
+      game_id            TEXT NOT NULL,
+      game_version       INT NOT NULL,
+      rounds             BIGINT NOT NULL,
+      total_bet_cents    BIGINT NOT NULL,
+      total_payout_cents BIGINT NOT NULL,
+      rtp                NUMERIC(8,5),
+      target_rtp         NUMERIC(8,5),
+      source             TEXT NOT NULL DEFAULT 'cron',
+      created_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `);
+
+  // Defesa em profundidade: RLS ligado em tudo, sem policies para os
+  // papéis do PostgREST (anon/authenticated ficam com negação total).
+  // Nossa API conecta como owner e não é afetada — a autorização real
+  // acontece na camada Express (JWT + requireAdmin).
+  await pool.query(`
+    DO $$
+    DECLARE t TEXT;
+    BEGIN
+      FOR t IN
+        SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+      LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
+      END LOOP;
+    END $$;
+  `);
+
   migrated = true;
 }
