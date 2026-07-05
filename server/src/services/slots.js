@@ -282,3 +282,138 @@ export async function snapshotRtp(source = "cron") {
   }
   return snapshots;
 }
+
+/* ============ BACKOFFICE (Bloco 4) ============ */
+
+/** Visão por jogo: RTP real vs alvo, volume, GGR e sessões ativas (15 min). */
+export async function gamesOverview() {
+  const { rows } = await pool.query(
+    `SELECT g.id, g.name, g.version, g.active, g.updated_by, g.updated_at,
+            (g.config->>'targetRtp')::numeric AS target_rtp,
+            (g.config->>'volatility') AS volatility,
+            COALESCE(s.rounds, 0)            AS rounds,
+            COALESCE(s.paid_rounds, 0)       AS paid_rounds,
+            COALESCE(s.bets, 0)              AS total_bet_cents,
+            COALESCE(s.payouts, 0)           AS total_payout_cents,
+            COALESCE(s.rounds_24h, 0)        AS rounds_24h,
+            COALESCE(s.bets_24h, 0)          AS bet_cents_24h,
+            COALESCE(s.payouts_24h, 0)       AS payout_cents_24h,
+            COALESCE(a.active_sessions, 0)   AS active_sessions,
+            COALESCE(a.pending_free_spins, 0) AS pending_free_spins
+     FROM slot_games g
+     LEFT JOIN LATERAL (
+       SELECT COUNT(*) AS rounds,
+              COUNT(*) FILTER (WHERE NOT is_free_spin) AS paid_rounds,
+              SUM(bet_cents) FILTER (WHERE NOT is_free_spin) AS bets,
+              SUM(payout_cents) AS payouts,
+              COUNT(*) FILTER (WHERE created_at > now() - interval '24 hours') AS rounds_24h,
+              SUM(bet_cents) FILTER (WHERE NOT is_free_spin AND created_at > now() - interval '24 hours') AS bets_24h,
+              SUM(payout_cents) FILTER (WHERE created_at > now() - interval '24 hours') AS payouts_24h
+       FROM slot_rounds r WHERE r.game_id = g.id
+     ) s ON true
+     LEFT JOIN LATERAL (
+       SELECT COUNT(*) FILTER (WHERE last_played_at > now() - interval '15 minutes') AS active_sessions,
+              SUM(free_spins_left) AS pending_free_spins
+       FROM slot_sessions ss WHERE ss.game_id = g.id
+     ) a ON true
+     ORDER BY g.id`
+  );
+  return rows.map((r) => ({
+    ...r,
+    realizedRtp: Number(r.total_bet_cents) > 0 ? Number(r.total_payout_cents) / Number(r.total_bet_cents) : null,
+    realizedRtp24h: Number(r.bet_cents_24h) > 0 ? Number(r.payout_cents_24h) / Number(r.bet_cents_24h) : null,
+    ggrCents: Number(r.total_bet_cents) - Number(r.total_payout_cents),
+  }));
+}
+
+/**
+ * Publica uma nova versão da config SEM deploy: valida com a engine,
+ * incrementa a versão e registra quem alterou em slot_game_versions.
+ */
+export async function updateGameConfig(gameId, newConfig, changedBy) {
+  if (!newConfig || typeof newConfig !== "object") {
+    throw new ApiError(400, "Config inválida: envie o objeto GameConfig completo");
+  }
+  if (newConfig.id && newConfig.id !== gameId) {
+    throw new ApiError(400, "O id da config não pode mudar");
+  }
+  try {
+    validateConfig({ ...newConfig, id: gameId });
+  } catch (err) {
+    throw new ApiError(400, err.message);
+  }
+
+  return withTx(async (client) => {
+    const { rows } = await client.query("SELECT * FROM slot_games WHERE id = $1 FOR UPDATE", [gameId]);
+    if (!rows[0]) throw new ApiError(404, "Jogo não encontrado");
+    const game = rows[0];
+
+    // versão anterior vai para o histórico (na primeira edição, registra a v1)
+    const { rows: hasV } = await client.query(
+      "SELECT 1 FROM slot_game_versions WHERE game_id = $1 AND version = $2",
+      [gameId, game.version]
+    );
+    if (!hasV.length) {
+      await client.query(
+        "INSERT INTO slot_game_versions (game_id, version, config, changed_by) VALUES ($1, $2, $3, $4)",
+        [gameId, game.version, game.config, game.updated_by || "boot"]
+      );
+    }
+
+    const newVersion = game.version + 1;
+    await client.query(
+      `UPDATE slot_games SET config = $1, version = $2, updated_by = $3, updated_at = now() WHERE id = $4`,
+      [{ ...newConfig, id: gameId }, newVersion, changedBy, gameId]
+    );
+    await client.query(
+      "INSERT INTO slot_game_versions (game_id, version, config, changed_by) VALUES ($1, $2, $3, $4)",
+      [gameId, newVersion, { ...newConfig, id: gameId }, changedBy]
+    );
+
+    return { gameId, version: newVersion, changedBy };
+  });
+}
+
+export async function listGameVersions(gameId) {
+  const { rows } = await pool.query(
+    `SELECT version, changed_by, created_at, config
+     FROM slot_game_versions WHERE game_id = $1 ORDER BY version DESC LIMIT 20`,
+    [gameId]
+  );
+  return rows;
+}
+
+export async function toggleGame(gameId, active, changedBy) {
+  const { rows } = await pool.query(
+    "UPDATE slot_games SET active = $1, updated_by = $2, updated_at = now() WHERE id = $3 RETURNING id, active",
+    [!!active, changedBy, gameId]
+  );
+  if (!rows[0]) throw new ApiError(404, "Jogo não encontrado");
+  return rows[0];
+}
+
+/** Log de auditoria de rodadas (todas as contas) para due diligence. */
+export async function auditRounds({ gameId = null, limit = 50 } = {}) {
+  const { rows } = await pool.query(
+    `SELECT r.id, r.game_id, r.game_version, r.nonce, r.bet_cents, r.payout_cents,
+            r.is_free_spin, r.created_at,
+            (r.result->>'totalMultiplier')::numeric AS total_multiplier,
+            u.id AS user_id, u.name AS user_name,
+            s.server_seed_hash
+     FROM slot_rounds r
+     JOIN users u ON u.id = r.user_id
+     JOIN fair_seeds s ON s.id = r.fair_seed_id
+     WHERE ($1::text IS NULL OR r.game_id = $1)
+     ORDER BY r.id DESC LIMIT $2`,
+    [gameId, Math.min(200, limit)]
+  );
+  return rows;
+}
+
+export async function listRtpLog(limit = 30) {
+  const { rows } = await pool.query(
+    "SELECT * FROM rtp_audit_log ORDER BY id DESC LIMIT $1",
+    [limit]
+  );
+  return rows;
+}

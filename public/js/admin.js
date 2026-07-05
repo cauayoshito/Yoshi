@@ -471,6 +471,131 @@
     }
   });
 
+
+  /* ============ SLOTS ENGINE (Bloco 4) ============ */
+  let currentCfgGame = null;
+
+  function renderEngine(games) {
+    $("#seGames").innerHTML = games
+      .map((g) => {
+        const target = Number(g.target_rtp);
+        const real = g.realizedRtp;
+        const real24 = g.realizedRtp24h;
+        const pct = (v) => (v == null ? "—" : (v * 100).toFixed(2) + "%");
+        // barra: escala 80–110% para o desvio ficar legível
+        const scale = (v) => Math.max(0, Math.min(100, ((v - 0.8) / 0.3) * 100));
+        return `<div class="se-card">
+          <div class="se-card-head">
+            <h3>${g.name}</h3>
+            <span class="se-version">v${g.version}</span>
+            <span class="status-pill ${g.active ? "pill-live" : "pill-finished"}">${g.active ? "Ativo" : "Inativo"}</span>
+          </div>
+          <div class="se-rtp-row"><span>RTP realizado (total)</span><strong>${pct(real)}</strong></div>
+          <div class="se-rtp-bar">
+            ${real != null ? `<div class="se-rtp-fill" style="width:${scale(real)}%"></div>` : ""}
+            <div class="se-rtp-target" style="left:${scale(target)}%" title="alvo ${pct(target)}"></div>
+          </div>
+          <div class="se-rtp-row"><span>Alvo ${pct(target)} · 24h ${pct(real24)}</span><span>${g.volatility}</span></div>
+          <div class="se-stats">
+            <div class="se-stat"><div class="lbl">Rodadas</div><div class="val">${Number(g.rounds).toLocaleString("pt-BR")}</div></div>
+            <div class="se-stat"><div class="lbl">GGR</div><div class="val">${fmt(g.ggrCents)}</div></div>
+            <div class="se-stat"><div class="lbl">Sessões 15min</div><div class="val">${g.active_sessions}</div></div>
+          </div>
+          <div class="se-actions">
+            <button class="btn btn-primary" data-cfg="${g.id}" data-name="${g.name}">⚙️ Editar config</button>
+            <button class="btn btn-ghost" data-toggle="${g.id}" data-active="${g.active}">${g.active ? "Desativar" : "Ativar"}</button>
+          </div>
+        </div>`;
+      })
+      .join("");
+  }
+
+  function renderEngineRounds(rounds) {
+    $("#seRoundsBody").innerHTML = rounds
+      .map(
+        (r) => `<tr>
+          <td>#${r.id}</td>
+          <td>${r.user_name} <span class="muted">(#${r.user_id})</span></td>
+          <td>${r.game_id}</td>
+          <td>v${r.game_version}</td>
+          <td>${r.nonce}</td>
+          <td>${fmt(r.bet_cents)}${r.is_free_spin ? ' <span class="adm-badge">FREE</span>' : ""}</td>
+          <td class="${Number(r.payout_cents) > 0 ? "tx-pos" : ""}">${fmt(r.payout_cents)}</td>
+          <td>${Number(r.total_multiplier).toFixed(1)}x</td>
+          <td title="${r.server_seed_hash}">${r.server_seed_hash.slice(0, 10)}…</td>
+          <td>${String(r.created_at).slice(0, 16).replace("T", " ")}</td>
+        </tr>`
+      )
+      .join("") || '<tr><td colspan="10" class="muted">Nenhuma rodada da engine ainda</td></tr>';
+  }
+
+  async function openCfgEditor(gameId, name) {
+    currentCfgGame = gameId;
+    $("#cfgGameName").textContent = name;
+    $("#cfgError").classList.add("hidden");
+    $("#cfgModal").classList.remove("hidden");
+    const [games, versions] = await Promise.all([
+      api("GET", "/api/slots/games"),
+      api("GET", `/api/admin/slots/games/${gameId}/versions`),
+    ]);
+    const game = games.games.find((g) => g.id === gameId);
+    $("#cfgEditor").value = JSON.stringify(game.config, null, 2);
+    $("#cfgVersions").innerHTML = versions.versions.length
+      ? versions.versions
+          .map(
+            (v) => `<div class="cfg-ver-row"><span class="v">v${v.version}</span>
+              <span>${v.changed_by}</span>
+              <span style="margin-left:auto">${String(v.created_at).slice(0, 16).replace("T", " ")}</span></div>`
+          )
+          .join("")
+      : '<p class="muted" style="font-size:.76rem">Nenhuma alteração publicada ainda (v1 = boot)</p>';
+  }
+
+  $("#cfgPublishBtn").addEventListener("click", async () => {
+    let cfg;
+    try {
+      cfg = JSON.parse($("#cfgEditor").value);
+    } catch {
+      $("#cfgError").textContent = "JSON inválido — corrija a sintaxe";
+      return void $("#cfgError").classList.remove("hidden");
+    }
+    try {
+      const r = await api("PUT", `/api/admin/slots/games/${currentCfgGame}/config`, { config: cfg });
+      toast(`✅ ${r.gameId} publicado como v${r.version} por ${r.changedBy}`);
+      $("#cfgModal").classList.add("hidden");
+      refresh();
+    } catch (err) {
+      $("#cfgError").textContent = err.message;
+      $("#cfgError").classList.remove("hidden");
+    }
+  });
+
+  document.addEventListener("click", async (e) => {
+    const cfgBtn = e.target.closest("[data-cfg]");
+    if (cfgBtn) return void openCfgEditor(cfgBtn.dataset.cfg, cfgBtn.dataset.name);
+    const tglBtn = e.target.closest("[data-toggle]");
+    if (tglBtn) {
+      try {
+        const r = await api("POST", `/api/admin/slots/games/${tglBtn.dataset.toggle}/toggle`, {
+          active: tglBtn.dataset.active !== "true",
+        });
+        toast(`Jogo ${r.id} ${r.active ? "ativado" : "desativado"}`);
+        refresh();
+      } catch (err) {
+        toast(err.message);
+      }
+    }
+  });
+
+  $("#seSnapshotBtn").addEventListener("click", async () => {
+    try {
+      const r = await api("POST", "/api/admin/slots/rtp-snapshot");
+      toast(`📸 Snapshot gravado: ${r.snapshots.map((s) => `${s.gameId} ${(s.rtp * 100).toFixed(2)}%`).join(" · ") || "sem rodadas ainda"}`);
+    } catch (err) {
+      toast(err.message);
+    }
+  });
+
   /* ============ PERÍODO ============ */
   let periodDays = 14;
   $$("#periodTabs button").forEach((b) =>
@@ -484,7 +609,7 @@
 
   /* ============ REFRESH ============ */
   async function refresh() {
-    const [stats, ts, products, top, matches, users, activity] = await Promise.all([
+    const [stats, ts, products, top, matches, users, activity, engine, engineRounds] = await Promise.all([
       api("GET", "/api/admin/stats"),
       api("GET", `/api/admin/timeseries?days=${periodDays}`),
       api("GET", "/api/admin/products"),
@@ -492,6 +617,8 @@
       api("GET", "/api/admin/matches"),
       api("GET", "/api/admin/users"),
       api("GET", "/api/admin/activity"),
+      api("GET", "/api/admin/slots/overview"),
+      api("GET", "/api/admin/slots/rounds?limit=30"),
     ]);
     renderKPIs(ts.series, stats);
     renderFlowChart(ts.series);
@@ -502,6 +629,8 @@
     allUsers = users.users;
     renderUsers(allUsers);
     renderTx(activity.transactions);
+    renderEngine(engine.games);
+    renderEngineRounds(engineRounds.rounds);
     $("#admUpdated").textContent =
       "Atualizado às " + new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
   }

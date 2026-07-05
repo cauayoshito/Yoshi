@@ -77,6 +77,25 @@
         </div>
       </section>
 
+      <!-- Slots Engine (Bloco 4) -->
+      <section class="adm-section">
+        <div class="adm-section-head">
+          <h2>🎰 Slots Engine — RTP e configuração</h2>
+          <button class="btn btn-ghost" id="seSnapshotBtn" style="margin-left:auto">Gravar snapshot de RTP</button>
+        </div>
+        <div id="seGames" class="se-games"></div>
+      </section>
+
+      <section class="adm-section">
+        <div class="adm-section-head"><h2>🧾 Auditoria de rodadas (engine)</h2></div>
+        <div class="adm-table-wrap">
+          <table class="adm-table">
+            <thead><tr><th>#</th><th>Jogador</th><th>Jogo</th><th>v</th><th>Nonce</th><th>Aposta</th><th>Prêmio</th><th>Mult.</th><th>Seed (hash)</th><th>Quando</th></tr></thead>
+            <tbody id="seRoundsBody"></tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- Copa -->
       <section class="adm-section">
         <div class="adm-section-head">
@@ -117,6 +136,21 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <!-- Editor de GameConfig -->
+  <div class="modal-overlay hidden" id="cfgModal">
+    <div class="modal modal-game">
+      <button class="modal-close" data-close onclick="document.getElementById('cfgModal').classList.add('hidden')">&times;</button>
+      <h2>⚙️ Config — <span id="cfgGameName"></span></h2>
+      <p class="modal-sub">Edite paytable e pesos sem deploy. A engine valida antes de publicar; cada publicação vira uma versão auditável.</p>
+      <textarea id="cfgEditor" class="cfg-editor" spellcheck="false"></textarea>
+      <p class="cfg-error hidden" id="cfgError"></p>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn btn-primary" id="cfgPublishBtn" style="flex:1">Validar & Publicar nova versão</button>
+      </div>
+      <div class="cfg-versions" id="cfgVersions"></div>
+    </div>
   </div>
 
   <div class="chart-tooltip hidden" id="chartTooltip" role="status"></div>

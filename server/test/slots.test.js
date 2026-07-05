@@ -7,6 +7,7 @@ process.env.DATABASE_URL =
   process.env.TEST_DATABASE_URL || "postgresql://postgres:postgres@127.0.0.1:5432/yoshibet_slots_test";
 process.env.PIX_DEMO_AUTOCONFIRM_MS = "0";
 process.env.JWT_SECRET = "segredo-de-teste";
+process.env.ADMIN_EMAIL = "chefe@yoshibet.com";
 
 const { createApp } = await import("../src/app.js");
 const { pool, migrate } = await import("../src/db.js");
@@ -211,4 +212,90 @@ test("snapshot de RTP grava no rtp_audit_log", async () => {
   const { rows } = await pool.query("SELECT * FROM rtp_audit_log ORDER BY id DESC LIMIT 1");
   assert.equal(rows[0].game_id, "yoshi-fortune");
   assert.ok(Number(rows[0].rounds) >= 8);
+});
+
+/* ============ BLOCO 4: BACKOFFICE ============ */
+
+let adminToken;
+
+test("backoffice: overview de RTP por jogo (admin only)", async () => {
+  const denied = await api("GET", "/api/admin/slots/overview");
+  assert.equal(denied.status, 403);
+
+  const reg = await api("POST", "/api/auth/register", {
+    name: "Chefe", email: "chefe@yoshibet.com", password: "supersegura",
+  });
+  adminToken = reg.body.token;
+
+  const saved = token;
+  token = adminToken;
+  const r = await api("GET", "/api/admin/slots/overview");
+  token = saved;
+  assert.equal(r.status, 200);
+  const yf = r.body.games.find((g) => g.id === "yoshi-fortune");
+  assert.ok(yf);
+  assert.equal(Number(yf.target_rtp), 0.965);
+  assert.ok(Number(yf.rounds) >= 8, "rodadas dos testes anteriores contabilizadas");
+  assert.ok(yf.realizedRtp === null || typeof yf.realizedRtp === "number");
+});
+
+test("backoffice: config inválida é rejeitada pela engine na publicação", async () => {
+  const saved = token;
+  token = adminToken;
+  const r = await api("PUT", "/api/admin/slots/games/yoshi-fortune/config", {
+    config: { name: "Quebrado", rows: 3, cols: 3, symbols: [], reels: [], paylines: [], paytable: [], targetRtp: 0.9, volatility: "medium" },
+  });
+  token = saved;
+  assert.equal(r.status, 400);
+  assert.match(r.body.error, /GameConfig inválido/);
+});
+
+test("backoffice: publicar config vàlida gera v2 com autor no histórico", async () => {
+  const saved = token;
+  token = adminToken;
+  const games = await api("GET", "/api/slots/games");
+  const cfg = games.body.games.find((g) => g.id === "yoshi-fortune").config;
+  cfg.paytable = cfg.paytable.map((p) => (p.symbol === "bell" ? { ...p, multiplier: 1.2 } : p));
+
+  const pub = await api("PUT", "/api/admin/slots/games/yoshi-fortune/config", { config: cfg });
+  assert.equal(pub.status, 200);
+  assert.equal(pub.body.version, 2);
+  assert.equal(pub.body.changedBy, "chefe@yoshibet.com");
+
+  const vers = await api("GET", "/api/admin/slots/games/yoshi-fortune/versions");
+  token = saved;
+  assert.ok(vers.body.versions.length >= 2, "v1 (boot) + v2 no histórico");
+  assert.equal(vers.body.versions[0].version, 2);
+  assert.equal(vers.body.versions[0].changed_by, "chefe@yoshibet.com");
+
+  // spins novos usam a versão nova
+  const spin = await api("POST", "/api/slots/yoshi-fortune/spin", { betCents: 100 });
+  assert.equal(spin.body.gameVersion, 2);
+});
+
+test("backoffice: log de auditoria lista rodadas de todas as contas", async () => {
+  const saved = token;
+  token = adminToken;
+  const r = await api("GET", "/api/admin/slots/rounds?limit=10");
+  token = saved;
+  assert.equal(r.status, 200);
+  assert.ok(r.body.rounds.length >= 5);
+  const round = r.body.rounds[0];
+  assert.ok(round.user_name && round.server_seed_hash && round.nonce != null);
+});
+
+test("backoffice: desativar jogo bloqueia spins; reativar libera", async () => {
+  const saved = token;
+  token = adminToken;
+  await api("POST", "/api/admin/slots/games/yoshi-fortune/toggle", { active: false });
+  token = saved;
+
+  const blocked = await api("POST", "/api/slots/yoshi-fortune/spin", { betCents: 100 });
+  assert.equal(blocked.status, 404);
+
+  token = adminToken;
+  await api("POST", "/api/admin/slots/games/yoshi-fortune/toggle", { active: true });
+  token = saved;
+  const ok = await api("POST", "/api/slots/yoshi-fortune/spin", { betCents: 100 });
+  assert.equal(ok.status, 200);
 });

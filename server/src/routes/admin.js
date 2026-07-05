@@ -3,6 +3,7 @@ import { pool } from "../db.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import { wrap } from "../middleware/error.js";
 import * as sports from "../services/sports.js";
+import * as slots from "../services/slots.js";
 
 export const adminRouter = Router();
 adminRouter.use(requireAuth, requireAdmin);
@@ -192,4 +193,44 @@ adminRouter.get("/top-players", wrap(async (_req, res) => {
      WHERE t.type IN ('bet','win') GROUP BY u.id, u.name ORDER BY profit_cents DESC LIMIT 5`
   );
   res.json({ byDeposits, byHouseProfit });
+}));
+
+/* ============ SLOTS ENGINE (Bloco 4 — backoffice) ============ */
+
+/** RTP real acumulado vs configurado, volume, GGR e sessões ativas por jogo. */
+adminRouter.get("/slots/overview", wrap(async (_req, res) => {
+  res.json({ games: await slots.gamesOverview() });
+}));
+
+/** Publica nova versão da GameConfig sem deploy (validada pela engine). */
+adminRouter.put("/slots/games/:id/config", wrap(async (req, res) => {
+  res.json(await slots.updateGameConfig(req.params.id, req.body?.config, req.user.email));
+}));
+
+/** Histórico de versões: quem alterou o quê e quando. */
+adminRouter.get("/slots/games/:id/versions", wrap(async (req, res) => {
+  res.json({ versions: await slots.listGameVersions(req.params.id) });
+}));
+
+/** Ativa/desativa o jogo. */
+adminRouter.post("/slots/games/:id/toggle", wrap(async (req, res) => {
+  res.json(await slots.toggleGame(req.params.id, req.body?.active, req.user.email));
+}));
+
+/** Log de auditoria de rodadas (todas as contas). */
+adminRouter.get("/slots/rounds", wrap(async (req, res) => {
+  res.json({
+    rounds: await slots.auditRounds({
+      gameId: req.query.gameId || null,
+      limit: Number(req.query.limit) || 50,
+    }),
+  });
+}));
+
+/** Snapshots históricos de RTP + snapshot sob demanda. */
+adminRouter.get("/slots/rtp-log", wrap(async (_req, res) => {
+  res.json({ log: await slots.listRtpLog() });
+}));
+adminRouter.post("/slots/rtp-snapshot", wrap(async (_req, res) => {
+  res.json({ snapshots: await slots.snapshotRtp("admin") });
 }));

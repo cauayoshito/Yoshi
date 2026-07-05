@@ -176,6 +176,17 @@ export async function migrate() {
       PRIMARY KEY (user_id, game_id)
     );
 
+    -- Histórico de versões de config (quem alterou, o quê, quando)
+    CREATE TABLE IF NOT EXISTS slot_game_versions (
+      id         BIGSERIAL PRIMARY KEY,
+      game_id    TEXT NOT NULL REFERENCES slot_games(id),
+      version    INT NOT NULL,
+      config     JSONB NOT NULL,
+      changed_by TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    CREATE INDEX IF NOT EXISTS idx_sgv_game ON slot_game_versions(game_id, version DESC);
+
     -- Snapshots de RTP para due diligence de operador/regulador
     CREATE TABLE IF NOT EXISTS rtp_audit_log (
       id                 BIGSERIAL PRIMARY KEY,

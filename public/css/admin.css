@@ -265,3 +265,37 @@
   .adm-search input { width: 100%; }
   .adm-section-head { flex-wrap: wrap; }
 }
+
+/* ============ SLOTS ENGINE (Bloco 4) ============ */
+.se-games { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 14px; }
+.se-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 18px 20px;
+}
+.se-card-head { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.se-card-head h3 { font-size: 0.98rem; font-weight: 800; flex: 1; }
+.se-version { font-size: 0.66rem; font-weight: 800; color: var(--text-3); background: var(--bg-2); border: 1px solid var(--border); border-radius: 99px; padding: 3px 9px; }
+.se-rtp-row { display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; color: var(--text-2); margin-bottom: 6px; }
+.se-rtp-row strong { color: var(--text); }
+.se-rtp-bar { position: relative; height: 8px; border-radius: 99px; background: var(--bg-2); margin: 4px 0 12px; overflow: visible; }
+.se-rtp-fill { height: 100%; border-radius: 99px; background: var(--s-green); }
+.se-rtp-target { position: absolute; top: -3px; width: 2px; height: 14px; background: var(--gold); }
+.se-stats { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.se-stat { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 10px; }
+.se-stat .lbl { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-3); }
+.se-stat .val { font-size: 0.9rem; font-weight: 800; margin-top: 2px; }
+.se-actions { display: flex; gap: 8px; }
+.se-actions .btn { flex: 1; padding: 8px 10px; font-size: 0.78rem; }
+.cfg-editor {
+  width: 100%; min-height: 300px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--border-strong); border-radius: var(--r-md);
+  font-family: ui-monospace, monospace; font-size: 0.74rem; line-height: 1.5;
+  padding: 12px; resize: vertical; outline: none;
+}
+.cfg-editor:focus { border-color: var(--green); }
+.cfg-error { color: var(--red); font-size: 0.8rem; font-weight: 700; margin-top: 8px; }
+.cfg-versions { margin-top: 16px; display: flex; flex-direction: column; gap: 6px; max-height: 160px; overflow-y: auto; }
+.cfg-ver-row { display: flex; gap: 10px; font-size: 0.76rem; font-weight: 600; color: var(--text-2); background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 7px 10px; }
+.cfg-ver-row .v { color: var(--gold); font-weight: 800; }
