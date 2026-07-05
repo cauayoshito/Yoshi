@@ -923,6 +923,11 @@
   window.YB = { api, toast, requireLogin, setBalance, fmt, icon, openModal, closeModals, stepBet };
   Object.defineProperty(window.YB, "user", { get: () => user });
 
+  /* ============ PWA ============ */
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+
   /* ============ INICIALIZAÇÃO ============ */
   (async () => {
     renderRows(); // skeletons

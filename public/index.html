@@ -9,6 +9,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <meta name="theme-color" content="#0d0f14" />
+  <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/game.css" />
 </head>
@@ -212,6 +217,7 @@
             <div class="yf-head">
               <button class="btn btn-ghost btn-back" data-view="home">‹ Voltar</button>
               <h2 class="yf-title">🐲 Yoshi Fortune</h2>
+              <button class="btn btn-ghost" id="yfMuteBtn" title="Som" aria-label="Som">🔊</button>
               <button class="btn btn-ghost yf-fair-btn" id="yfFairBtn" title="Provably Fair">🛡️ Fairness</button>
             </div>
 
@@ -530,6 +536,7 @@
 
 <script src="js/twemoji-map.js"></script>
 <script src="js/data.js"></script>
+<script src="js/sound.js"></script>
 <script src="js/app.js"></script>
 <script src="js/game.js"></script>
 </body>

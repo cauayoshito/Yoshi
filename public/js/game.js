@@ -9,6 +9,7 @@
 
   const $ = (sel) => document.querySelector(sel);
   const { api, toast, requireLogin, setBalance, fmt, icon } = window.YB;
+  const S = window.YoshiSound;
 
   const GAME_ID = "yoshi-fortune";
   const SYMBOL_EMOJI = {
@@ -126,6 +127,7 @@
     $("#yfMsg").textContent = "Girando…";
     document.querySelectorAll(".yf-cell").forEach((c) => c.classList.remove("yf-win"));
 
+    S.spin();
     const shuffle = startReels();
 
     try {
@@ -140,6 +142,7 @@
       for (let col = 0; col < 3; col++) {
         await new Promise((r) => setTimeout(r, 280));
         stopReelColumn(col, spin.result.grid, winCells);
+        S.reelStop(col);
       }
       clearInterval(shuffle);
 
@@ -147,11 +150,14 @@
       freeSpinsLeft = spin.freeSpinsLeft;
       pushHistory(spin);
 
+      if (spin.payoutCents > 0) S.win(spin.result.totalMultiplier);
       if (spin.result.featureMultiplier > 1) {
+        S.feature();
         burst(`x${spin.result.featureMultiplier}!`, "yf-burst-mult");
         await new Promise((r) => setTimeout(r, 700));
       }
       if (spin.result.freeSpinsAwarded > 0) {
+        S.freeSpins();
         burst(`🎁 +${spin.result.freeSpinsAwarded} FREE SPINS`, "yf-burst-fs");
       }
 
@@ -279,6 +285,11 @@
   });
 
   $("#yfFairBtn").addEventListener("click", openFair);
+
+  $("#yfMuteBtn").textContent = S.muted ? "🔇" : "🔊";
+  $("#yfMuteBtn").addEventListener("click", () => {
+    $("#yfMuteBtn").textContent = S.toggleMute() ? "🔇" : "🔊";
+  });
 
   document.addEventListener("click", (e) => {
     const link = e.target.closest(".yf-verify-link");
