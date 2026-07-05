@@ -28,11 +28,11 @@ cd server && npm test
 ## 🏗️ Arquitetura
 
 ```
-├── index.html            # SPA: views, modais, jogos
-├── css/style.css         # Tema escuro completo + responsivo
-├── js/
-│   ├── data.js           # Constantes de UI
-│   └── app.js            # Cliente da API + animações
+├── public/               # Front-end estático (Vercel serve via CDN)
+│   ├── index.html        # SPA: views, modais, jogos
+│   ├── admin.html        # Painel administrativo
+│   ├── css/ · js/ · assets/
+├── api/index.js          # Função serverless da Vercel (Express)
 └── server/
     ├── src/
     │   ├── index.js      # Bootstrap HTTP

@@ -36,5 +36,5 @@ export const config = {
 
   adminEmail: (process.env.ADMIN_EMAIL || "admin@yoshibet.com").toLowerCase(),
 
-  staticRoot: path.resolve(__dirname, "..", ".."),
+  staticRoot: path.resolve(__dirname, "..", "..", "public"),
 };
