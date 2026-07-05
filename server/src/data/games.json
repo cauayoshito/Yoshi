@@ -1,5 +1,5 @@
 [
-  { "id": "fortune-yoshi", "name": "Fortune Yoshi", "provider": "Yoshi Originals", "emoji": "🐲", "cats": ["all", "slots", "new"], "gradient": "linear-gradient(160deg,#0c5a20,#128a2e)", "badge": "demo", "playable": "slot" },
+  { "id": "fortune-yoshi", "name": "Yoshi Fortune", "provider": "Yoshi Originals", "emoji": "🐲", "cats": ["all", "slots", "new"], "gradient": "linear-gradient(160deg,#0c5a20,#128a2e)", "badge": "demo", "playable": "slot" },
   { "id": "mines", "name": "Mines", "provider": "Yoshi Originals", "emoji": "💣", "cats": ["all", "crash", "new"], "gradient": "linear-gradient(160deg,#232946,#3b3f66)", "badge": "demo", "playable": "mines" },
   { "id": "fortune-tiger", "name": "Fortune Tiger", "provider": "PG Soft", "emoji": "🐯", "cats": ["all", "slots"], "gradient": "linear-gradient(160deg,#7a1f04,#c2410c)", "badge": "hot" },
   { "id": "fortune-ox", "name": "Fortune Ox", "provider": "PG Soft", "emoji": "🐂", "cats": ["all", "slots"], "gradient": "linear-gradient(160deg,#7c2d12,#b45309)", "badge": "hot" },

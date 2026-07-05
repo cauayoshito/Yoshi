@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
+  <link rel="stylesheet" href="css/game.css" />
 </head>
 <body>
 
@@ -204,6 +205,52 @@
         <div id="matchesContainer"></div>
       </section>
 
+      <!-- ============ VIEW: YOSHI FORTUNE (engine) ============ -->
+      <section class="view hidden" id="view-game">
+        <div class="yf-layout">
+          <div class="yf-stage">
+            <div class="yf-head">
+              <button class="btn btn-ghost btn-back" data-view="home">‹ Voltar</button>
+              <h2 class="yf-title">🐲 Yoshi Fortune</h2>
+              <button class="btn btn-ghost yf-fair-btn" id="yfFairBtn" title="Provably Fair">🛡️ Fairness</button>
+            </div>
+
+            <div class="yf-frame">
+              <div class="yf-fs-banner hidden" id="yfFsBanner">
+                🎁 FREE SPINS — restam <strong id="yfFsCount">0</strong>
+              </div>
+              <div class="yf-grid" id="yfGrid"></div>
+              <div class="yf-burst hidden" id="yfBurst"></div>
+              <div class="yf-msg" id="yfMsg">Boa sorte! 🍀</div>
+            </div>
+
+            <div class="yf-hud">
+              <div class="bet-control">
+                <button class="bet-btn" id="yfBetMinus">−</button>
+                <div class="bet-value">R$ <span id="yfBet">1,00</span></div>
+                <button class="bet-btn" id="yfBetPlus">＋</button>
+              </div>
+              <button class="btn btn-spin yf-spin" id="yfSpinBtn">GIRAR</button>
+              <button class="btn btn-ghost yf-auto" id="yfAutoBtn">AUTO</button>
+            </div>
+          </div>
+
+          <aside class="yf-side">
+            <div class="yf-panel">
+              <h4>Tabela de prêmios</h4>
+              <div id="yfPaytable" class="yf-paytable"></div>
+              <p class="muted yf-note">RTP 96,5% · multiplicador aleatório até 10x · 4 📜 = 6 free spins</p>
+            </div>
+            <div class="yf-panel">
+              <h4>Últimas rodadas</h4>
+              <div id="yfHistory" class="yf-history">
+                <p class="muted">Nenhuma rodada ainda</p>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
       <!-- ============ VIEW: CATÁLOGO (categoria/busca) ============ -->
       <section class="view hidden" id="view-catalog">
         <div class="catalog-head">
@@ -388,26 +435,6 @@
   </div>
 </div>
 
-<!-- Jogo: Slot -->
-<div class="modal-overlay hidden" id="slotModal">
-  <div class="modal modal-game">
-    <button class="modal-close" data-close>&times;</button>
-    <h2 id="slotTitle">🐲 Fortune Yoshi</h2>
-    <div class="slot-machine">
-      <div class="slot-grid" id="slotGrid"></div>
-      <div class="slot-msg" id="slotMsg">Boa sorte! 🍀</div>
-      <div class="game-controls">
-        <div class="bet-control">
-          <button class="bet-btn" id="slotBetMinus">−</button>
-          <div class="bet-value">R$ <span id="slotBet">1,00</span></div>
-          <button class="bet-btn" id="slotBetPlus">＋</button>
-        </div>
-        <button class="btn btn-spin" id="spinBtn">GIRAR 🎰</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Jogo: Mines -->
 <div class="modal-overlay hidden" id="minesModal">
   <div class="modal modal-game">
@@ -469,11 +496,41 @@
   <button class="btn btn-primary btn-block" id="bsSubmit">Fazer aposta</button>
 </div>
 
+<!-- Provably Fair: seeds -->
+<div class="modal-overlay hidden" id="fairModal">
+  <div class="modal">
+    <button class="modal-close" data-close>&times;</button>
+    <h2>🛡️ Provably Fair</h2>
+    <p class="modal-sub">O hash do server seed é publicado antes de qualquer rodada. Rotacione para revelar o seed e auditar suas rodadas.</p>
+    <div class="fair-field"><span>Server seed (hash)</span><code id="fairHash">—</code></div>
+    <div class="fair-field"><span>Client seed</span><code id="fairClient">—</code></div>
+    <div class="fair-field"><span>Nonce atual</span><code id="fairNonce">—</code></div>
+    <div class="fair-revealed hidden" id="fairRevealed">
+      <div class="fair-field fair-ok"><span>Server seed revelado</span><code id="fairRevealedSeed"></code></div>
+      <p class="muted">Guarde este seed: com ele você reproduz todas as rodadas do par anterior.</p>
+    </div>
+    <label class="form">Novo client seed (opcional)
+      <input type="text" id="fairNewClient" maxlength="64" placeholder="deixe vazio para aleatório" />
+    </label>
+    <button class="btn btn-primary btn-block" id="fairRotateBtn" style="margin-top:12px">Rotacionar e revelar seed</button>
+  </div>
+</div>
+
+<!-- Verificação pública de rodada -->
+<div class="modal-overlay hidden" id="verifyModal">
+  <div class="modal">
+    <button class="modal-close" data-close>&times;</button>
+    <h2>🔍 Verificar rodada <span id="vfRoundId"></span></h2>
+    <div id="vfBody"><p class="muted">Carregando…</p></div>
+  </div>
+</div>
+
 <!-- Toast -->
 <div class="toast hidden" id="toast"></div>
 
 <script src="js/twemoji-map.js"></script>
 <script src="js/data.js"></script>
 <script src="js/app.js"></script>
+<script src="js/game.js"></script>
 </body>
 </html>

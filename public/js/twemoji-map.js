@@ -1,6 +1,10 @@
 /* Gerado a partir do pacote @twemoji/svg (github.com/jdecked/twemoji, CC-BY 4.0) */
 const TWEMOJI = {
   "🐲": "1f432.svg",
+  "🧧": "1f9e7.svg",
+  "🧨": "1f9e8.svg",
+  "🍊": "1f34a.svg",
+  "📜": "1f4dc.svg",
   "💣": "1f4a3.svg",
   "🐯": "1f42f.svg",
   "🐂": "1f402.svg",

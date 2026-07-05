@@ -143,7 +143,7 @@
       loadHistory();
     }
 
-    ["home", "catalog", "promos", "profile", "sports"].forEach((v) =>
+    ["home", "catalog", "promos", "profile", "sports", "game"].forEach((v) =>
       $(`#view-${v}`).classList.toggle("hidden", v !== target)
     );
     $$(".side-link").forEach((a) => a.classList.toggle("active", a.dataset.view === name));
@@ -429,7 +429,7 @@
     $("#gridTitle").textContent = `Resultados para "${term}"`;
     $("#gamesCount").textContent = `${list.length} jogos`;
     $("#gamesGrid").innerHTML = list.map(gameCardHTML).join("");
-    ["home", "catalog", "promos", "profile", "sports"].forEach((v) =>
+    ["home", "catalog", "promos", "profile", "sports", "game"].forEach((v) =>
       $(`#view-${v}`).classList.toggle("hidden", v !== "catalog")
     );
   }
@@ -737,74 +737,17 @@
     });
   });
 
-  /* ============ SLOT: FORTUNE YOSHI ============ */
+  /* ============ SLOT: agora é o Yoshi Fortune (js/game.js) ============ */
   const BET_STEPS = [50, 100, 200, 500, 1000, 2500, 5000]; // centavos
-  let slotBetCents = 100;
-  let spinning = false;
-
-  function openSlot() {
-    closeModals();
-    renderSlotGrid(Array.from({ length: 9 }, () => SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]));
-    $("#slotMsg").textContent = "Boa sorte! 🍀";
-    openModal("slotModal");
-  }
-
-  function renderSlotGrid(symbols, winCells = []) {
-    $("#slotGrid").innerHTML = symbols
-      .map((s, i) => `<div class="slot-cell ${winCells.includes(i) ? "win-cell" : ""}">${icon(s)}</div>`)
-      .join("");
-  }
-
   function stepBet(current, delta) {
     let idx = BET_STEPS.indexOf(current) + delta;
     idx = Math.max(0, Math.min(BET_STEPS.length - 1, idx));
     return BET_STEPS[idx];
   }
-
-  $("#slotBetMinus").addEventListener("click", () => {
-    slotBetCents = stepBet(slotBetCents, -1);
-    $("#slotBet").textContent = fmt(slotBetCents);
-  });
-  $("#slotBetPlus").addEventListener("click", () => {
-    slotBetCents = stepBet(slotBetCents, 1);
-    $("#slotBet").textContent = fmt(slotBetCents);
-  });
-
-  $("#spinBtn").addEventListener("click", async () => {
-    if (spinning) return;
-    spinning = true;
-    $("#spinBtn").disabled = true;
-    $("#slotMsg").textContent = "Girando… 🎰";
-    $$("#slotGrid .slot-cell").forEach((c) => c.classList.add("spinning"));
-
-    const shuffle = setInterval(() => {
-      $$("#slotGrid .slot-cell").forEach((c) => {
-        c.innerHTML = icon(SLOT_SYMBOLS[Math.floor(Math.random() * SLOT_SYMBOLS.length)]);
-      });
-    }, 90);
-
-    try {
-      const [result] = await Promise.all([
-        api("POST", "/api/games/slot/spin", { betCents: slotBetCents }),
-        new Promise((r) => setTimeout(r, 1200)),
-      ]);
-      clearInterval(shuffle);
-      renderSlotGrid(result.grid, result.winCells);
-      setBalance(result.balanceCents);
-      $("#slotMsg").textContent =
-        result.winCents > 0
-          ? `🎉 VOCÊ GANHOU R$ ${fmt(result.winCents)}!`
-          : "Quase! Tente de novo 🍀";
-    } catch (err) {
-      clearInterval(shuffle);
-      $$("#slotGrid .slot-cell").forEach((c) => c.classList.remove("spinning"));
-      $("#slotMsg").textContent = "";
-      toast(err.message);
-      if (/Saldo insuficiente/i.test(err.message)) openModal("depositModal");
-    }
-    spinning = false;
-    $("#spinBtn").disabled = false;
-  });
+  function openSlot() {
+    showView("game");
+    window.YoshiFortune?.enter();
+  }
 
   /* ============ MINES ============ */
   const MINES_SIZE = 25;
@@ -925,6 +868,10 @@
       toast(err.message);
     }
   });
+
+  /* ============ BRIDGE (js/game.js) ============ */
+  window.YB = { api, toast, requireLogin, setBalance, fmt, icon, openModal, closeModals, stepBet };
+  Object.defineProperty(window.YB, "user", { get: () => user });
 
   /* ============ INICIALIZAÇÃO ============ */
   (async () => {
