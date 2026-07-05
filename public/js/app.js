@@ -341,6 +341,56 @@
   });
 
   /* ============ CARDS / FILEIRAS / CATÁLOGO ============ */
+  /* Arte de card gerada: cena SVG em camadas (fundo, raios, glow, símbolo, acentos) */
+  function accentsFor(g) {
+    if (g.provider === "Yoshi Originals") return ["⭐", "💰"];
+    if (g.cats.includes("crash")) return ["⚡", "⭐"];
+    if (g.cats.includes("live")) return ["💎", "🏆"];
+    if (g.cats.includes("table")) return ["🍀", "💎"];
+    return ["💰", "⭐"];
+  }
+
+  function gradientStops(gradient) {
+    const hexes = gradient.match(/#[0-9a-fA-F]{3,8}/g) || ["#1a2038", "#2a3358"];
+    return [hexes[0], hexes[hexes.length - 1]];
+  }
+
+  function cardArtSVG(g) {
+    const [c1, c2] = gradientStops(g.gradient);
+    const main = twe(g.emoji);
+    const [a1, a2] = accentsFor(g).map((e) => twe(e));
+    const uid = g.id.replace(/[^a-z0-9-]/gi, "");
+    const rays = Array.from({ length: 8 }, (_, i) => {
+      const rot = i * 45 + 22;
+      return `<path d="M150 195 L120 -40 L180 -40 Z" fill="rgba(255,255,255,0.045)" transform="rotate(${rot} 150 195)"/>`;
+    }).join("");
+    const sparks = [[52, 96, 2.4], [246, 78, 1.8], [230, 300, 2.2], [64, 318, 1.6], [270, 180, 1.4]]
+      .map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="rgba(255,255,255,0.35)"/>`) 
+      .join("");
+    return `<svg class="ga-svg" viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="bg-${uid}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/>
+        </linearGradient>
+        <radialGradient id="gl-${uid}" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stop-color="rgba(255,255,255,0.32)"/>
+          <stop offset="0.55" stop-color="rgba(255,255,255,0.08)"/>
+          <stop offset="1" stop-color="rgba(255,255,255,0)"/>
+        </radialGradient>
+      </defs>
+      <rect width="300" height="400" fill="url(#bg-${uid})"/>
+      ${rays}
+      <circle cx="150" cy="192" r="105" fill="url(#gl-${uid})"/>
+      <circle cx="150" cy="192" r="82" fill="none" stroke="rgba(255,255,255,0.16)" stroke-width="2"/>
+      <circle cx="150" cy="192" r="92" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="1"/>
+      ${sparks}
+      ${a1 ? `<image href="${a1}" x="34" y="52" width="40" height="40" opacity="0.9" transform="rotate(-14 54 72)"/>` : ""}
+      ${a2 ? `<image href="${a2}" x="226" y="252" width="36" height="36" opacity="0.85" transform="rotate(12 244 270)"/>` : ""}
+      ${main ? `<image class="ga-main" href="${main}" x="88" y="130" width="124" height="124"/>` : ""}
+      <rect width="300" height="400" fill="url(#bg-${uid})" opacity="0" />
+    </svg>`;
+  }
+
   function gameCardHTML(g) {
     const badge = g.badge
       ? `<span class="game-badge badge-${g.badge}">${
@@ -349,7 +399,7 @@
       : "";
     return `<div class="game-card" data-game="${g.id}">
       ${badge}
-      <div class="game-art" style="background:${g.gradient}">${icon(g.emoji)}</div>
+      <div class="game-art">${cardArtSVG(g)}</div>
       <div class="game-info">
         <div class="game-name">${g.name}</div>
         <div class="game-provider">${g.provider}</div>
