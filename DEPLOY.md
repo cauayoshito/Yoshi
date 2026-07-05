@@ -16,10 +16,25 @@ O projeto roda em qualquer lugar que aceite Node.js ou Docker. O SQLite fica em
 ## Opção 1 — Railway (mais fácil, tem volume no plano free)
 
 1. [railway.app](https://railway.app) → **New Project → Deploy from GitHub repo**
-2. Railway detecta o `Dockerfile` sozinho
-3. Em **Variables**, defina `JWT_SECRET` e `ADMIN_EMAIL`
-4. Em **Settings → Volumes**, monte um volume em `/data`
-5. **Settings → Networking → Generate Domain** → pronto, URL pública
+2. O `railway.json` do repo já força o build via **Dockerfile** (e há um
+   `package.json` na raiz como fallback para o builder automático)
+3. No serviço → **Variables**, adicione:
+   - `JWT_SECRET` = um segredo longo (gere em [generate-secret.vercel.app/32](https://generate-secret.vercel.app/32))
+   - `ADMIN_EMAIL` = seu e-mail (a conta cadastrada com ele vira admin)
+   - `DB_PATH` = `/data/yoshibet.db`
+4. No serviço → aba do **volume**: confirme que o *mount path* é **`/data`**
+   (se criou com outro caminho, edite ou recrie o volume)
+5. **Settings → Networking → Generate Domain** → URL pública
+6. Alterou algo? **Deployments → ⋮ → Redeploy**
+
+### Build falhou no Railway?
+
+- **"Railpack/Nixpacks could not determine how to build"** → o serviço não usou
+  o Dockerfile. Vá em **Settings → Build → Builder** e selecione **Dockerfile**
+  (ou apenas faça redeploy após este commit — o `railway.json` já resolve).
+- **Erro no `npm ci` / better-sqlite3** → o Dockerfile já instala o toolchain
+  de compilação; basta redeploy com o commit atual.
+- Confira os **Build Logs** no deployment para a mensagem exata.
 
 ## Opção 2 — Render (blueprint pronto)
 

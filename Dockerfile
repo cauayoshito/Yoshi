@@ -3,9 +3,14 @@ FROM node:22-slim
 
 WORKDIR /app
 
-# Instala apenas as dependências do servidor (camada cacheável)
+# Dependências do servidor (camada cacheável). Toolchain instalado só para o
+# caso do better-sqlite3 precisar compilar (sem prebuild), e removido depois.
 COPY server/package.json server/package-lock.json server/
-RUN cd server && npm ci --omit=dev
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends python3 make g++ ca-certificates \
+ && npm ci --omit=dev --prefix server \
+ && apt-get purge -y --auto-remove python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
 
 # Copia o restante (front-end estático + código do servidor)
 COPY . .
