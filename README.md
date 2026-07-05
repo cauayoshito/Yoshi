@@ -127,6 +127,12 @@ Autenticação: `Authorization: Bearer <token>` (JWT, 7 dias).
 | GET | `/api/admin/matches` | (admin) Partidas com volume apostado |
 | POST | `/api/admin/matches/:id/result` | (admin) Registra placar e liquida apostas |
 | POST | `/api/admin/settle` | (admin) Força a liquidação automática |
+| GET | `/api/slots/games` | Catálogo da engine (config completa, transparência) |
+| POST | `/api/slots/:id/spin` | Spin provably fair server-side (engine) |
+| GET | `/api/slots/verify/:roundId` | Verificação pública de rodada |
+| GET/POST | `/api/fair/seeds` · `/rotate` | Gestão de seeds provably fair |
+| GET | `/api/stats/jackpot` · `/live-wins` · `/race` | Jackpot, ganhos reais mascarados, corrida diária |
+| GET/PUT | `/api/admin/slots/*` | (admin) Backoffice da engine: RTP, config versionada, auditoria |
 
 Limites (config via `.env`): depósito R$ 20–10.000 · aposta R$ 0,50–50 · saque mín. R$ 20.
 

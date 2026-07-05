@@ -12,6 +12,7 @@ import { gamesRouter } from "./routes/games.js";
 import { sportsRouter } from "./routes/sports.js";
 import { adminRouter } from "./routes/admin.js";
 import { slotsRouter, fairRouter } from "./routes/slots.js";
+import { statsRouter } from "./routes/stats.js";
 import { settleFinishedMatches } from "./services/sports.js";
 import { snapshotRtp } from "./services/slots.js";
 
@@ -53,6 +54,7 @@ export function createApp() {
   app.use("/api/admin", adminRouter);
   app.use("/api/slots", slotsRouter);
   app.use("/api/fair", fairRouter);
+  app.use("/api/stats", statsRouter);
 
   // Vercel Cron chama esta rota (Authorization: Bearer CRON_SECRET)
   app.get("/api/cron/settle", wrap(async (req, res) => {

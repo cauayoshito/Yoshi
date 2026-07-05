@@ -299,3 +299,27 @@ test("backoffice: desativar jogo bloqueia spins; reativar libera", async () => {
   const ok = await api("POST", "/api/slots/yoshi-fortune/spin", { betCents: 100 });
   assert.equal(ok.status, 200);
 });
+
+/* ============ JACKPOT / STATS PÚBLICOS ============ */
+
+test("jackpot cresce 1% a cada aposta paga da engine", async () => {
+  const before_ = (await api("GET", "/api/stats/jackpot")).body.amountCents;
+  await api("POST", "/api/slots/yoshi-fortune/spin", { betCents: 1000 });
+  const after_ = (await api("GET", "/api/stats/jackpot")).body.amountCents;
+  assert.equal(after_, before_ + 10, "R$ 10,00 de aposta → +R$ 0,10 no pote");
+});
+
+test("stats públicos: ganhos reais mascarados e corrida diária", async () => {
+  const saved = token;
+  token = null;
+  const wins = await api("GET", "/api/stats/live-wins");
+  assert.equal(wins.status, 200);
+  for (const w of wins.body.wins) {
+    assert.match(w.player, /^.{2}\*\*\*$/, "nome mascarado");
+  }
+  const race = await api("GET", "/api/stats/race");
+  token = saved;
+  assert.equal(race.status, 200);
+  assert.ok(race.body.ranking.length >= 1, "spinner apostou hoje");
+  assert.match(race.body.ranking[0].player, /\*\*\*$/);
+});

@@ -584,48 +584,92 @@
   restartHeroTimer();
   goSlide(0);
 
-  /* ============ APOSTAS AO VIVO (decorativo) ============ */
-  const LB_MAX = 10;
+  /* ============ JACKPOT + GANHOS REAIS + CORRIDA ============ */
+  const LB_MAX = 12;
 
-  function randomBet() {
+  // Jackpot com contagem animada
+  let jpShown = 0;
+  function renderJackpot(target) {
+    const el = $("#jackpotValue");
+    if (!el) return;
+    const start = jpShown || target - 500;
+    const t0 = performance.now();
+    const dur = 1200;
+    function tick(t) {
+      const k = Math.min(1, (t - t0) / dur);
+      const v = start + (target - start) * (1 - Math.pow(1 - k, 3));
+      el.textContent = "R$ " + fmt(Math.round(v));
+      if (k < 1) requestAnimationFrame(tick);
+      else jpShown = target;
+    }
+    requestAnimationFrame(tick);
+  }
+  async function pollJackpot() {
+    try {
+      const j = await api("GET", "/api/stats/jackpot");
+      renderJackpot(j.amountCents);
+    } catch { /* mantém último valor */ }
+  }
+  setInterval(pollJackpot, 15000);
+
+  // Ganhos ao vivo: dados REAIS da plataforma (fallback decorativo se vazio)
+  function fakeWin() {
     const name = WINNER_NAMES[Math.floor(Math.random() * WINNER_NAMES.length)];
-    const masked = name.slice(0, 2) + "***";
-    const game = GAMES.length
-      ? GAMES[Math.floor(Math.random() * GAMES.length)]
-      : { name: "Fortune Yoshi", emoji: "🐲" };
-    const bet = [2, 5, 10, 20, 50, 100, 250][Math.floor(Math.random() * 7)];
-    const won = Math.random() < 0.42;
-    const mult = won ? (1 + Math.random() * 9) : 0;
-    const profit = won ? bet * mult : -bet;
-    const time = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    return { masked, game, bet, mult, profit, won, time };
+    const game = GAMES.length ? GAMES[Math.floor(Math.random() * GAMES.length)] : { name: "Yoshi Fortune", emoji: "🐲" };
+    const bet = [200, 500, 1000, 2000, 5000][Math.floor(Math.random() * 5)];
+    const mult = 1 + Math.random() * 9;
+    return {
+      player: name.slice(0, 2) + "***",
+      game: game.name,
+      emoji: game.emoji,
+      bet_cents: bet,
+      payout_cents: Math.round(bet * mult),
+      multiplier: mult,
+      created_at: new Date().toISOString(),
+    };
   }
 
-  function liveBetRowHTML(b, isNew = false) {
-    const profitCls = b.won ? "lb-profit-win" : "lb-profit-loss";
-    const profitTxt = (b.won ? "+R$ " : "−R$ ") + Math.abs(b.profit).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    return `<tr class="${isNew ? "lb-new" : ""}">
-      <td><span class="lb-game"><span class="ico">${icon(b.game.emoji)}</span>${b.game.name}</span></td>
-      <td class="lb-user">${b.masked}</td>
-      <td class="lb-time hide-sm">${b.time}</td>
-      <td>R$ ${b.bet.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</td>
-      <td class="lb-mult hide-sm">${b.won ? b.mult.toFixed(2) + "x" : "—"}</td>
-      <td class="${profitCls}">${profitTxt}</td>
+  function liveWinRowHTML(w) {
+    const time = new Date(w.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return `<tr>
+      <td><span class="lb-game"><span class="ico">${icon(w.emoji)}</span>${w.game}</span></td>
+      <td class="lb-user">${w.player}</td>
+      <td class="lb-time hide-sm">${time}</td>
+      <td>R$ ${fmt(w.bet_cents)}</td>
+      <td class="lb-mult hide-sm">${Number(w.multiplier).toFixed(2)}x</td>
+      <td class="lb-profit-win">+R$ ${fmt(w.payout_cents)}</td>
     </tr>`;
   }
 
-  function seedLiveBets() {
-    $("#liveBetsBody").innerHTML = Array.from({ length: LB_MAX }, () => liveBetRowHTML(randomBet())).join("");
+  async function pollLiveWins() {
+    let wins = [];
+    try {
+      const r = await api("GET", "/api/stats/live-wins");
+      wins = r.wins;
+    } catch { /* offline: cai no fake */ }
+    if (!wins.length) wins = Array.from({ length: 8 }, fakeWin);
+    $("#liveBetsBody").innerHTML = wins.slice(0, LB_MAX).map(liveWinRowHTML).join("");
   }
+  setInterval(pollLiveWins, 10000);
 
-  function pushLiveBet() {
-    const body = $("#liveBetsBody");
-    body.insertAdjacentHTML("afterbegin", liveBetRowHTML(randomBet(), true));
-    while (body.children.length > LB_MAX) body.lastElementChild.remove();
+  // Corrida diária
+  async function pollRace() {
+    try {
+      const r = await api("GET", "/api/stats/race");
+      $("#racePool").textContent = "R$ " + fmt(r.prizePoolCents);
+      if (!r.ranking.length) return;
+      $("#raceList").innerHTML = r.ranking
+        .map(
+          (p, i) => `<div class="race-row">
+            <span class="race-pos">${i + 1}º</span>${p.player}
+            <span class="race-wagered">R$ ${fmt(p.wagered_cents)}</span>
+            <span class="race-prize">${r.prizes[i] ? "R$ " + fmt(r.prizes[i]) : "—"}</span>
+          </div>`
+        )
+        .join("");
+    } catch { /* mantém estado */ }
   }
-
-  setInterval(pushLiveBet, 2800);
-
+  setInterval(pollRace, 30000);
 
   /* ============ COPA 2026 (apostas via API) ============ */
   let MATCHES = [];
@@ -931,8 +975,10 @@
   /* ============ INICIALIZAÇÃO ============ */
   (async () => {
     renderRows(); // skeletons
-    seedLiveBets();
     renderSports();
+    pollJackpot();
+    pollLiveWins();
+    pollRace();
 
     try {
       const [gamesData, matchesData] = await Promise.all([
@@ -945,9 +991,9 @@
       toast(err.message);
     }
     renderRows();
-    seedLiveBets();
     renderSports();
     renderSportsPreview();
+    pollLiveWins();
 
     if (token) {
       try {

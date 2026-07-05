@@ -149,6 +149,13 @@
           </div>
         </div>
 
+        <!-- Jackpot progressivo -->
+        <div class="jackpot-strip" id="jackpotStrip">
+          <span class="jp-label">💰 JACKPOT YOSHI</span>
+          <span class="jp-value" id="jackpotValue">R$ —</span>
+          <span class="jp-note">1% de cada aposta nos Originals alimenta o pote</span>
+        </div>
+
         <!-- Chips de categoria (mobile) -->
         <div class="category-chips" id="categoryChips">
           <button class="chip chip-live" data-view-btn="sports">⚽ Copa 2026</button>
@@ -166,10 +173,11 @@
         <!-- Carrosséis de jogos por categoria (renderizados pelo JS) -->
         <div id="rowsContainer"></div>
 
-        <!-- Apostas ao vivo -->
+        <!-- Apostas ao vivo + corrida diária -->
+        <div class="live-race-grid">
         <section class="live-bets">
           <div class="section-head">
-            <h3><span class="pulse-dot"></span> Apostas ao vivo</h3>
+            <h3><span class="pulse-dot"></span> Ganhos ao vivo</h3>
           </div>
           <div class="lb-wrap">
             <table class="lb-table">
@@ -180,6 +188,12 @@
             </table>
           </div>
         </section>
+
+        <section class="race-panel">
+          <div class="section-head"><h3>🏁 Corrida diária · <span class="hl-gold" id="racePool">R$ 1.000</span></h3></div>
+          <div class="race-list" id="raceList"><p class="muted">Sem apostas hoje ainda</p></div>
+        </section>
+        </div>
 
         <!-- Provedores -->
         <section class="providers">

@@ -160,6 +160,14 @@ export async function spin(userId, gameId, betCentsRaw) {
     // nonce consumido
     await client.query("UPDATE fair_seeds SET nonce = nonce + 1 WHERE id = $1", [pair.id]);
 
+    // jackpot progressivo: 1% de cada aposta paga
+    if (!isFreeSpin && betCents > 0) {
+      await client.query(
+        "UPDATE jackpot SET amount_cents = amount_cents + $1, updated_at = now() WHERE id = 1",
+        [Math.max(1, Math.floor(betCents / 100))]
+      );
+    }
+
     // rodada gravada (trilha de auditoria)
     const { rows: roundRows } = await client.query(
       `INSERT INTO slot_rounds

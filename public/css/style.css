@@ -1509,3 +1509,71 @@ body {
   .sports-hero-art { width: 64px; height: 64px; }
   .banner-art img { display: none; }
 }
+
+/* ============ JACKPOT / CORRIDA ============ */
+.jackpot-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background:
+    radial-gradient(600px 80px at 20% 0%, rgba(255, 184, 0, 0.12), transparent 70%),
+    var(--surface);
+  border: 1px solid rgba(255, 184, 0, 0.35);
+  border-radius: var(--r-lg);
+  padding: 12px 20px;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+.jp-label { font-size: 0.72rem; font-weight: 900; letter-spacing: 1.4px; color: var(--gold); white-space: nowrap; }
+.jp-value {
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: 0.5px;
+  color: var(--gold);
+  text-shadow: 0 0 18px rgba(255, 184, 0, 0.45);
+  font-variant-numeric: tabular-nums;
+}
+.jp-note { margin-left: auto; font-size: 0.7rem; color: var(--text-3); }
+
+.live-race-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 16px;
+  align-items: start;
+  margin: 30px 0;
+}
+.live-race-grid .live-bets { margin: 0; }
+.race-panel { min-width: 0; }
+.race-list {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.race-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 7px 8px;
+  border-radius: var(--r-sm);
+}
+.race-row:nth-child(1) { background: var(--gold-soft); }
+.race-row .race-pos {
+  width: 24px; height: 24px; border-radius: 8px;
+  background: var(--surface-2); color: var(--text-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.68rem; font-weight: 800; flex-shrink: 0;
+}
+.race-row:nth-child(1) .race-pos { background: var(--gold); color: #241500; }
+.race-row .race-wagered { margin-left: auto; color: var(--text-2); font-weight: 600; font-size: 0.76rem; }
+.race-row .race-prize { color: var(--green); font-weight: 800; font-size: 0.78rem; min-width: 64px; text-align: right; }
+
+@media (max-width: 900px) {
+  .live-race-grid { grid-template-columns: 1fr; }
+  .jp-note { display: none; }
+}

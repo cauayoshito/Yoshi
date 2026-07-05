@@ -202,6 +202,16 @@ export async function migrate() {
     );
   `);
 
+  // Jackpot progressivo: 1% de cada aposta paga nos Originals
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS jackpot (
+      id           INT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+      amount_cents BIGINT NOT NULL DEFAULT 0,
+      updated_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    INSERT INTO jackpot (id, amount_cents) VALUES (1, 1000000) ON CONFLICT (id) DO NOTHING;
+  `);
+
   // Defesa em profundidade: RLS ligado em tudo, sem policies para os
   // papéis do PostgREST (anon/authenticated ficam com negação total).
   // Nossa API conecta como owner e não é afetada — a autorização real
