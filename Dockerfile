@@ -19,8 +19,8 @@ ENV NODE_ENV=production \
     PORT=3000 \
     DB_PATH=/data/yoshibet.db
 
-# Monte um volume em /data para o SQLite sobreviver a deploys
-VOLUME /data
+# Persistência: monte um volume da plataforma em /data (Railway/Render).
+# Não usamos a instrução VOLUME aqui — o Railway não a suporta e o deploy falha.
 EXPOSE 3000
 
 CMD ["node", "server/src/index.js"]
