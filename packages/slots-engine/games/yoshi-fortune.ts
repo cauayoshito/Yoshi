@@ -58,4 +58,11 @@ export const yoshiFortune: GameConfig = {
 
   targetRtp: 0.965,
   volatility: "medium",
+
+  display: {
+    symbols: { yoshi: "🐲", ingot: "💰", envelope: "🧧", firecracker: "🧨", orange: "🍊", bell: "🔔", scroll: "📜" },
+    labels: { yoshi: "Yoshi (wild)", ingot: "Ouro", envelope: "Envelope", firecracker: "Fogos", orange: "Laranja", bell: "Sino", scroll: "Pergaminho (scatter)" },
+    gradient: "linear-gradient(165deg,#2a0d0f 0%,#3d1114 45%,#24090b 100%)",
+    accent: "#ffb800",
+  },
 };

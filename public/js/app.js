@@ -496,15 +496,17 @@
     if (!card) return;
     const game = GAMES.find((g) => g.id === card.dataset.game);
     if (!game || !requireLogin()) return;
-    if (game.playable === "slot") return void openSlot();
+    if (game.playable === "engine") return void openSlot(game.engineId || game.id);
+    if (game.playable === "slot") return void openSlot("yoshi-fortune");
     if (game.playable === "mines") return void openMines();
+    // jogo de produtora licenciada: entra aqui a integração via agregador
     $("#gameModalArt").textContent = game.emoji;
     $("#gameModalTitle").textContent = game.name;
     $("#gameModalProvider").textContent = game.provider;
     openModal("gameModal");
   });
 
-  $("#gameModalDemoBtn").addEventListener("click", openSlot);
+  $("#gameModalDemoBtn").addEventListener("click", () => openSlot("yoshi-fortune"));
 
   /* ============ HISTÓRICO ============ */
   async function loadSportBets() {
@@ -886,9 +888,9 @@
     idx = Math.max(0, Math.min(BET_STEPS.length - 1, idx));
     return BET_STEPS[idx];
   }
-  function openSlot() {
+  function openSlot(gameId = "yoshi-fortune") {
     showView("game");
-    window.YoshiFortune?.enter();
+    window.YoshiFortune?.enter(gameId);
   }
 
   /* ============ MINES ============ */

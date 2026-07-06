@@ -20,6 +20,7 @@ import {
   hashServerSeed,
 } from "../../../packages/slots-engine/dist/src/index.js";
 import { yoshiFortune } from "../../../packages/slots-engine/dist/games/yoshi-fortune.js";
+import { themedGames } from "../../../packages/slots-engine/dist/games/themed.js";
 import { pool, withTx } from "../db.js";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/error.js";
@@ -28,13 +29,15 @@ import { assertBetAllowed } from "./responsible.js";
 
 /** Publica os jogos da engine no catálogo (idempotente; roda no boot). */
 export async function ensureGames() {
-  validateConfig(yoshiFortune);
-  await pool.query(
-    `INSERT INTO slot_games (id, name, config, updated_by)
-     VALUES ($1, $2, $3, 'boot')
-     ON CONFLICT (id) DO NOTHING`,
-    [yoshiFortune.id, yoshiFortune.name, yoshiFortune]
-  );
+  for (const game of [yoshiFortune, ...themedGames]) {
+    validateConfig(game);
+    await pool.query(
+      `INSERT INTO slot_games (id, name, config, updated_by)
+       VALUES ($1, $2, $3, 'boot')
+       ON CONFLICT (id) DO NOTHING`,
+      [game.id, game.name, game]
+    );
+  }
 }
 
 export async function listGames() {

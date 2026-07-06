@@ -56,6 +56,21 @@ export interface GameConfig {
   /** RTP alvo (ex.: 0.965). O simulador valida a paytable contra ele. */
   readonly targetRtp: number;
   readonly volatility: Volatility;
+  /**
+   * Metadados de apresentação — a engine IGNORA no cálculo; o cliente usa
+   * para renderizar. Mantém "config, não código": um jogo temático novo é só
+   * um GameConfig novo, sem tocar no front.
+   */
+  readonly display?: {
+    /** emoji/ícone por símbolo (ex.: { tiger: "🐯" }). */
+    readonly symbols?: Readonly<Record<SymbolId, string>>;
+    /** rótulo legível por símbolo. */
+    readonly labels?: Readonly<Record<SymbolId, string>>;
+    /** gradiente de fundo do jogo (CSS). */
+    readonly gradient?: string;
+    /** cor de destaque (glow/bordas). */
+    readonly accent?: string;
+  };
 }
 
 /** Uma linha premiada na resolução. */

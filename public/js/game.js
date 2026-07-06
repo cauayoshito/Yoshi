@@ -11,36 +11,33 @@
   const { api, toast, requireLogin, setBalance, fmt, icon } = window.YB;
   const S = window.YoshiSound;
 
-  const GAME_ID = "yoshi-fortune";
-  const SYMBOL_EMOJI = {
-    yoshi: "🐲",
-    ingot: "💰",
-    envelope: "🧧",
-    firecracker: "🧨",
-    orange: "🍊",
-    bell: "🔔",
-    scroll: "📜",
-  };
-  const SYMBOL_NAME = {
-    yoshi: "Yoshi (wild)",
-    ingot: "Ouro",
-    envelope: "Envelope",
-    firecracker: "Fogos",
-    orange: "Laranja",
-    bell: "Sino",
-    scroll: "Pergaminho (scatter)",
-  };
-  const ALL_SYMBOLS = Object.keys(SYMBOL_EMOJI);
+  // Multi-jogo: tudo vem da config da engine (símbolos, tema, paytable).
+  let GAME_ID = "yoshi-fortune";
+  let config = null;         // GameConfig do jogo atual
+  let SYMBOL_EMOJI = {};      // display.symbols
+  let SYMBOL_NAME = {};       // display.labels
+  let ALL_SYMBOLS = [];       // config.symbols
+  let CATALOG = [];           // cache do /api/slots/games
 
-  let config = null;
   let betCents = 100;
   let spinning = false;
   let autoplay = false;
   let freeSpinsLeft = 0;
-  let entered = false;
 
-  const randSym = () => ALL_SYMBOLS[Math.floor(Math.random() * ALL_SYMBOLS.length)];
-  const cellHTML = (sym) => icon(SYMBOL_EMOJI[sym] || sym, "yf-sym");
+  const randSym = () => ALL_SYMBOLS[Math.floor(Math.random() * ALL_SYMBOLS.length)] || "❔";
+  const cellHTML = (sym) => icon(SYMBOL_EMOJI[sym] || "❔", "yf-sym");
+
+  function applyGame(game) {
+    config = game.config;
+    GAME_ID = game.id;
+    ALL_SYMBOLS = config.symbols;
+    SYMBOL_EMOJI = config.display?.symbols || {};
+    SYMBOL_NAME = config.display?.labels || {};
+    $("#yfTitle").innerHTML = `${icon(SYMBOL_EMOJI[config.wild] || "🎰")} ${game.name}`;
+    const frame = $(".yf-frame");
+    if (config.display?.gradient) frame.style.background = config.display.gradient;
+    if (config.display?.accent) frame.style.borderColor = config.display.accent + "8c";
+  }
 
   /* ============ RENDER ============ */
 
@@ -298,29 +295,36 @@
 
   /* ============ ENTRADA NA VIEW ============ */
 
-  async function enter() {
+  async function enter(gameId = "yoshi-fortune") {
     autoplay = false;
+    freeSpinsLeft = 0;
     $("#yfAutoBtn").classList.remove("active");
     $("#yfAutoBtn").textContent = "AUTO";
-    renderGrid(Array.from({ length: 9 }, randSym));
-    $("#yfMsg").textContent = "Boa sorte! 🍀";
 
-    if (!entered) {
-      entered = true;
-      try {
-        const g = await api("GET", "/api/slots/games");
-        config = g.games.find((x) => x.id === GAME_ID)?.config || null;
+    // carrega o catálogo (uma vez) e aplica o jogo pedido
+    try {
+      if (!CATALOG.length) CATALOG = (await api("GET", "/api/slots/games")).games;
+      const game = CATALOG.find((x) => x.id === gameId) || CATALOG.find((x) => x.id === "yoshi-fortune");
+      if (game) {
+        applyGame(game);
         renderPaytable();
-      } catch { /* paytable fica vazia; jogo segue */ }
-    }
+      }
+    } catch { /* usa o que já tiver */ }
+
+    const rows = config?.rows ?? 3, cols = config?.cols ?? 3;
+    $("#yfGrid").style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+    renderGrid(Array.from({ length: rows * cols }, randSym));
+    $("#yfMsg").textContent = "Boa sorte! 🍀";
+    $("#yfHistory").innerHTML = '<p class="muted">Nenhuma rodada ainda</p>';
 
     // retoma free spins pendentes
     if (window.YB.user) {
       try {
         const rounds = await api("GET", "/api/slots/rounds");
-        if (rounds.rounds.length) {
+        const mine = rounds.rounds.filter((r) => r.game_id === GAME_ID);
+        if (mine.length) {
           $("#yfHistory").innerHTML = "";
-          rounds.rounds.slice(0, 8).reverse().forEach((r) =>
+          mine.slice(0, 8).reverse().forEach((r) =>
             pushHistory({
               roundId: r.id,
               payoutCents: r.payout_cents,
