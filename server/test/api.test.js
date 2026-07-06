@@ -184,24 +184,30 @@ test("esportes: lista partidas com status calculado", async () => {
   assert.ok(r.body.matches.every((m) => ["upcoming", "live", "finished"].includes(m.status)));
 });
 
+let openMatch; // partida ainda aberta, escolhida dinamicamente (robusto ao relógio)
+
 test("esportes: aposta debita carteira e usa odds do servidor", async () => {
+  const matches = (await api("GET", "/api/sports/matches")).body.matches;
+  openMatch = matches.find((m) => m.status === "upcoming" && !m.result);
+  assert.ok(openMatch, "precisa existir ao menos uma partida futura no calendário");
+
   const before = (await api("GET", "/api/wallet")).body.balanceCents;
   const r = await api("POST", "/api/sports/bet", {
-    matchId: "wc-r16-3",
+    matchId: openMatch.id,
     pick: "home",
     stakeCents: 1000,
     odds: 999, // odds do cliente devem ser ignoradas
   });
   assert.equal(r.status, 201);
   assert.equal(r.body.balanceCents, before - 1000);
-  assert.equal(r.body.bet.odds, 1.55);
-  assert.equal(r.body.bet.potential_win_cents, 1550);
+  assert.equal(r.body.bet.odds, openMatch.odds.home);
+  assert.equal(r.body.bet.potential_win_cents, Math.floor(1000 * openMatch.odds.home));
   assert.equal(r.body.bet.status, "pending");
-  assert.equal(r.body.bet.pickLabel, "Brasil");
+  assert.equal(r.body.bet.pickLabel, openMatch.home.name);
 });
 
 test("esportes: pick inválido e partida inexistente são recusados", async () => {
-  const bad = await api("POST", "/api/sports/bet", { matchId: "wc-r16-3", pick: "banana", stakeCents: 1000 });
+  const bad = await api("POST", "/api/sports/bet", { matchId: openMatch.id, pick: "banana", stakeCents: 1000 });
   assert.equal(bad.status, 400);
   const missing = await api("POST", "/api/sports/bet", { matchId: "nope", pick: "home", stakeCents: 1000 });
   assert.equal(missing.status, 404);
@@ -210,7 +216,7 @@ test("esportes: pick inválido e partida inexistente são recusados", async () =
 test("esportes: lista minhas apostas", async () => {
   const r = await api("GET", "/api/sports/bets");
   assert.ok(r.body.bets.length >= 1);
-  assert.equal(r.body.bets[0].match.home.name, "Brasil");
+  assert.equal(r.body.bets[0].match.home.name, openMatch.home.name);
 });
 
 test("rotas protegidas exigem token", async () => {
@@ -251,29 +257,31 @@ test("admin: stats retornam métricas coerentes", async () => {
 });
 
 test("liquidação: resultado paga vencedores e marca perdedores", async () => {
-  // aposta do usuário comum no empate de wc-r16-5 (Espanha x Portugal, odd 3.4)
+  // aposta no empate da partida aberta escolhida dinamicamente
+  const expectedPaid = Math.floor(1000 * openMatch.odds.draw);
   const bet = await api("POST", "/api/sports/bet", {
-    matchId: "wc-r16-5",
+    matchId: openMatch.id,
     pick: "draw",
     stakeCents: 1000,
   });
   assert.equal(bet.status, 201);
   const balanceBefore = bet.body.balanceCents;
 
-  // admin registra 1x1 → aposta no empate ganha
+  // admin registra 1x1 → aposta no empate ganha (a aposta em casa perde)
   const saved = token;
   token = adminToken;
-  const result = await api("POST", "/api/admin/matches/wc-r16-5/result", {
+  const result = await api("POST", `/api/admin/matches/${openMatch.id}/result`, {
     homeScore: 1,
     awayScore: 1,
   });
   assert.equal(result.status, 200);
   assert.equal(result.body.outcome, "draw");
   assert.equal(result.body.won, 1);
-  assert.equal(result.body.paidCents, 3400);
+  assert.equal(result.body.lost, 1);
+  assert.equal(result.body.paidCents, expectedPaid);
 
   // resultado duplicado é recusado (idempotência)
-  const dup = await api("POST", "/api/admin/matches/wc-r16-5/result", {
+  const dup = await api("POST", `/api/admin/matches/${openMatch.id}/result`, {
     homeScore: 2,
     awayScore: 0,
   });
@@ -282,15 +290,15 @@ test("liquidação: resultado paga vencedores e marca perdedores", async () => {
 
   // saldo do apostador foi creditado e a aposta marcada como ganha
   const wallet = await api("GET", "/api/wallet");
-  assert.equal(wallet.body.balanceCents, balanceBefore + 3400);
+  assert.equal(wallet.body.balanceCents, balanceBefore + expectedPaid);
   const bets = await api("GET", "/api/sports/bets");
-  const settled = bets.body.bets.find((b) => b.match_id === "wc-r16-5");
+  const settled = bets.body.bets.find((b) => b.match_id === openMatch.id && b.pick === "draw");
   assert.equal(settled.status, "won");
 });
 
 test("liquidação: apostar em partida com resultado é bloqueado", async () => {
   const r = await api("POST", "/api/sports/bet", {
-    matchId: "wc-r16-5",
+    matchId: openMatch.id,
     pick: "home",
     stakeCents: 1000,
   });
