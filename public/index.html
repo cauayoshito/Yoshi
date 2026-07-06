@@ -8,7 +8,11 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='2' y='2' width='44' height='44' rx='13' fill='%2300e880'/%3E%3Cpath d='M15 14l9 12v9M33 14l-9 12' stroke='%2304150c' stroke-width='5.5' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3Ccircle cx='37.5' cy='11.5' r='3' fill='%23ffb800'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <!-- Fonte carregada sem bloquear o render (troca para all no onload). -->
+  <link rel="preload" as="style"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
+        onload="this.onload=null;this.rel='stylesheet'" />
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" /></noscript>
   <link rel="manifest" href="/manifest.webmanifest" />
   <meta name="theme-color" content="#0d0f14" />
   <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png" />
@@ -16,6 +20,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="stylesheet" href="css/style.css" />
   <link rel="stylesheet" href="css/game.css" />
+  <!-- Scripts com defer: baixam em paralelo ao parse do HTML e executam
+       na ordem (app.js publica window.YB antes de game.js consumir). -->
+  <script src="js/twemoji-map.js" defer></script>
+  <script src="js/data.js" defer></script>
+  <script src="js/sound.js" defer></script>
+  <script src="js/app.js" defer></script>
+  <script src="js/game.js" defer></script>
 </head>
 <body>
 
@@ -119,7 +130,7 @@
                 <p>No seu primeiro depósito via PIX. Cai na hora.</p>
                 <button class="btn btn-cta" data-modal="registerModal">Criar conta grátis</button>
               </div>
-              <div class="banner-art"><img src="assets/twemoji/1f42f.svg" alt="🐯" /></div>
+              <div class="banner-art"><img src="assets/twemoji/1f42f.svg" alt="🐯" decoding="async" fetchpriority="high" width="240" height="240" /></div>
             </div>
             <div class="banner banner-2">
               <div class="banner-glow"></div>
@@ -129,7 +140,7 @@
                 <p>Devolvemos parte das suas perdas toda segunda.</p>
                 <button class="btn btn-cta" data-view-btn="promos">Ver promoções</button>
               </div>
-              <div class="banner-art"><img src="assets/twemoji/1f4b0.svg" alt="💰" /></div>
+              <div class="banner-art"><img src="assets/twemoji/1f4b0.svg" alt="💰" loading="lazy" decoding="async" width="240" height="240" /></div>
             </div>
             <div class="banner banner-3">
               <div class="banner-glow"></div>
@@ -139,7 +150,7 @@
                 <p>Jogue os slots participantes e suba no ranking.</p>
                 <button class="btn btn-cta" data-view-btn="casino">Jogar agora</button>
               </div>
-              <div class="banner-art"><img src="assets/twemoji/1f3c6.svg" alt="🏆" /></div>
+              <div class="banner-art"><img src="assets/twemoji/1f3c6.svg" alt="🏆" loading="lazy" decoding="async" width="240" height="240" /></div>
             </div>
           </div>
           <div class="carousel-nav">
@@ -219,7 +230,7 @@
             <h2>Copa do Mundo <span class="hl-gold">2026</span></h2>
             <p class="muted">Confrontos reais do mata-mata · Mercado 1X2 (demo)</p>
           </div>
-          <img class="sports-hero-art" src="assets/twemoji/1f3c6.svg" alt="🏆" />
+          <img class="sports-hero-art" src="assets/twemoji/1f3c6.svg" alt="🏆" loading="lazy" decoding="async" width="120" height="120" />
         </div>
         <div id="matchesContainer"></div>
       </section>
@@ -476,7 +487,7 @@
     <div class="bonus-note" id="bonusNote">🎁 Primeiro depósito ganha <strong>+R$ 50,00 de bônus</strong> (100%)</div>
     <button class="btn btn-deposit btn-block" id="generatePixBtn">Gerar PIX</button>
     <div class="pix-area hidden" id="pixArea">
-      <div class="pix-qr" id="pixQr"><img id="pixQrImg" alt="QR Code PIX" /></div>
+      <div class="pix-qr" id="pixQr"><img id="pixQrImg" alt="QR Code PIX" loading="lazy" decoding="async" /></div>
       <div class="pix-code-row">
         <input type="text" id="pixCode" readonly />
         <button class="btn btn-ghost" id="copyPixBtn">Copiar</button>
@@ -578,11 +589,6 @@
 
 <!-- Toast -->
 <div class="toast hidden" id="toast"></div>
-
-<script src="js/twemoji-map.js"></script>
-<script src="js/data.js"></script>
-<script src="js/sound.js"></script>
-<script src="js/app.js"></script>
-<script src="js/game.js"></script>
+<!-- Scripts carregados via <head defer> para baixar em paralelo ao parse. -->
 </body>
 </html>

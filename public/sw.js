@@ -1,5 +1,5 @@
 /* Service worker do YOSHI BET — cache-first para estáticos, rede para a API */
-const CACHE = "yoshibet-v1";
+const CACHE = "yoshibet-v2";
 const PRECACHE = [
   "/",
   "/index.html",
