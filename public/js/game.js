@@ -33,7 +33,8 @@
     ALL_SYMBOLS = config.symbols;
     SYMBOL_EMOJI = config.display?.symbols || {};
     SYMBOL_NAME = config.display?.labels || {};
-    $("#yfTitle").innerHTML = `${icon(SYMBOL_EMOJI[config.wild] || "🎰")} ${game.name}`;
+    const iconSym = config.wild || config.scatter?.symbol || config.symbols[0];
+    $("#yfTitle").innerHTML = `${icon(SYMBOL_EMOJI[iconSym] || "🎰")} ${game.name}`;
     const frame = $(".yf-frame");
     if (config.display?.gradient) frame.style.background = config.display.gradient;
     if (config.display?.accent) frame.style.borderColor = config.display.accent + "8c";
@@ -101,9 +102,9 @@
     }, 70);
   }
 
-  function stopReelColumn(col, finalGrid, winCells) {
-    for (let row = 0; row < 3; row++) {
-      const i = row * 3 + col;
+  function stopReelColumn(col, finalGrid, winCells, cols = 3, rows = 3) {
+    for (let row = 0; row < rows; row++) {
+      const i = row * cols + col;
       const cell = document.querySelector(`.yf-cell[data-i="${i}"]`);
       if (!cell) continue;
       cell.classList.remove("yf-spinning");
@@ -111,6 +112,28 @@
       cell.innerHTML = cellHTML(finalGrid[i]);
       if (winCells.has(i)) cell.classList.add("yf-win");
       setTimeout(() => cell.classList.remove("yf-stop"), 450);
+    }
+  }
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  /** Animação de cascata (jogos scatter-tumble): destaca ganhos e faz cair. */
+  async function playTumbles(spin) {
+    const tumbles = spin.result.tumbles || [];
+    let gridNow = tumbles[0]?.grid || spin.result.grid;
+    renderGrid(gridNow);
+    for (let i = 0; i < tumbles.length; i++) {
+      const t = tumbles[i];
+      t.winningCells.forEach((idx) =>
+        document.querySelector(`.yf-cell[data-i="${idx}"]`)?.classList.add("yf-win")
+      );
+      S.win(t.stepMultiplier);
+      await sleep(520);
+      const next = tumbles[i + 1]?.grid || spin.result.grid;
+      renderGrid(next);
+      document.querySelectorAll(".yf-cell").forEach((c) => c.classList.add("yf-stop"));
+      await sleep(300);
+      document.querySelectorAll(".yf-cell").forEach((c) => c.classList.remove("yf-stop"));
     }
   }
 
@@ -133,15 +156,23 @@
         new Promise((r) => setTimeout(r, 650)),
       ]);
 
-      const winCells = new Set(spin.result.lineWins.flatMap((w) => w.cells));
+      const cols = config?.cols ?? 3, rows = config?.rows ?? 3;
 
-      // parada em cascata: coluna a coluna
-      for (let col = 0; col < 3; col++) {
-        await new Promise((r) => setTimeout(r, 280));
-        stopReelColumn(col, spin.result.grid, winCells);
-        S.reelStop(col);
+      if (config?.kind === "scatter-tumble") {
+        // para todos os reels de uma vez e roda a cascata
+        clearInterval(shuffle);
+        S.reelStop(0);
+        await playTumbles(spin);
+      } else {
+        // parada coluna a coluna (paylines)
+        const winCells = new Set(spin.result.lineWins.flatMap((w) => w.cells));
+        for (let col = 0; col < cols; col++) {
+          await new Promise((r) => setTimeout(r, 280));
+          stopReelColumn(col, spin.result.grid, winCells, cols, rows);
+          S.reelStop(col);
+        }
+        clearInterval(shuffle);
       }
-      clearInterval(shuffle);
 
       setBalance(spin.balanceCents);
       freeSpinsLeft = spin.freeSpinsLeft;

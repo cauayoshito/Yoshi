@@ -3,6 +3,7 @@
   { "id": "lucky-tiger", "name": "Lucky Tiger", "provider": "Yoshi Originals", "emoji": "🐯", "cats": ["all", "slots"], "gradient": "linear-gradient(160deg,#7a1f04,#c2410c)", "badge": "hot", "playable": "engine", "engineId": "lucky-tiger" },
   { "id": "golden-dragon", "name": "Golden Dragon", "provider": "Yoshi Originals", "emoji": "🐉", "cats": ["all", "slots", "new"], "gradient": "linear-gradient(160deg,#04231a,#0a4d38)", "badge": "new", "playable": "engine", "engineId": "golden-dragon" },
   { "id": "mystic-ox", "name": "Mystic Ox", "provider": "Yoshi Originals", "emoji": "🐂", "cats": ["all", "slots"], "gradient": "linear-gradient(160deg,#2a1a04,#4d3308)", "badge": "hot", "playable": "engine", "engineId": "mystic-ox" },
+  { "id": "dragons-hoard", "name": "Dragon's Hoard", "provider": "Yoshi Originals", "emoji": "🔮", "cats": ["all", "slots", "new"], "gradient": "linear-gradient(160deg,#1a0b2e,#2d1155)", "badge": "hot", "playable": "engine", "engineId": "dragons-hoard" },
   { "id": "mines", "name": "Mines", "provider": "Yoshi Originals", "emoji": "💣", "cats": ["all", "crash", "new"], "gradient": "linear-gradient(160deg,#232946,#3b3f66)", "badge": "demo", "playable": "mines" },
   { "id": "fortune-rabbit", "name": "Fortune Rabbit", "provider": "PG Soft", "emoji": "🐰", "cats": ["all", "slots"], "gradient": "linear-gradient(160deg,#9d174d,#db2777)", "badge": "hot" },
   { "id": "fortune-mouse", "name": "Fortune Mouse", "provider": "PG Soft", "emoji": "🐭", "cats": ["slots"], "gradient": "linear-gradient(160deg,#7f1d1d,#dc2626)" },

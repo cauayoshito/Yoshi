@@ -198,3 +198,66 @@ test("simulador: RTP do Yoshi Fortune fica dentro de ±1 p.p. em 300k spins", ()
   );
   assert.ok(report.hitRate > 0.1 && report.hitRate < 0.6);
 });
+
+/* ============ SCATTER-TUMBLE (Dragon's Hoard) ============ */
+import { dragonsHoard } from "../games/dragons-hoard.js";
+import { resolveScatterPays, playScatterTumble } from "../src/engine.js";
+
+test("scatter-tumble: config válida e é aceita pela engine", () => {
+  validateConfig(dragonsHoard);
+  assert.equal(dragonsHoard.kind, "scatter-tumble");
+  assert.equal(dragonsHoard.rows * dragonsHoard.cols, 30);
+});
+
+test("scatterPays paga por quantidade (8+ do mesmo símbolo em qualquer posição)", () => {
+  // grid 6x5: 8 rubis espalhados + resto preenchido sem outro 8+
+  const grid = new Array(30).fill("gem_blue");
+  for (let i = 0; i < 8; i++) grid[i] = "gem_red";        // 8 rubis → paga
+  const fill1 = ["crown","ring","chalice","hourglass","gem_green","gem_purple"];
+  for (let i = 8; i < 30; i++) grid[i] = fill1[i % 6]!;
+  const r = resolveScatterPays(dragonsHoard, grid);
+  assert.ok(r.multiplier > 0, "8 rubis deveriam pagar");
+  assert.equal(r.cells.length, 8);
+});
+
+test("menos que a faixa mínima não paga", () => {
+  const fill2 = ["crown","ring","chalice","hourglass","gem_red","gem_blue","gem_green"];
+  const grid = Array.from({ length: 30 }, (_, i) => fill2[i % 7]!);
+  // cada símbolo aparece ~4-5x, nenhum atinge 8
+  const r = resolveScatterPays(dragonsHoard, grid);
+  assert.equal(r.multiplier, 0);
+});
+
+test("tumble é determinístico e reproduzível a partir dos seeds", () => {
+  const seed = generateServerSeed();
+  const a = playScatterTumble(dragonsHoard, new ProvablyFairRNG(seed, "c", 1));
+  const b = playScatterTumble(dragonsHoard, new ProvablyFairRNG(seed, "c", 1));
+  assert.deepEqual(a, b);
+  assert.equal(a.lineWins.length, 0, "scatter-tumble não usa paylines");
+  assert.ok(Array.isArray(a.tumbles));
+});
+
+test("cada passo de tumble tem grid e células vencedoras; total = soma dos passos × feature", () => {
+  const seed = generateServerSeed();
+  // procura um spin com ganho para inspecionar a cascata
+  let res = null;
+  for (let n = 0; n < 500 && !res; n++) {
+    const r = playScatterTumble(dragonsHoard, new ProvablyFairRNG(seed, "x", n));
+    if (r.baseMultiplier > 0) res = r;
+  }
+  assert.ok(res, "deveria achar um spin premiado em 500 tentativas");
+  const sumSteps = res.tumbles!.reduce((a, t) => a + t.stepMultiplier, 0);
+  assert.ok(Math.abs(sumSteps - res.baseMultiplier) < 1e-9);
+  assert.equal(res.totalMultiplier, res.baseMultiplier * res.featureMultiplier);
+  for (const step of res.tumbles!) {
+    assert.equal(step.grid.length, 30);
+    assert.ok(step.winningCells.length > 0);
+  }
+});
+
+test("RTP em amostra fica na vizinhança do alvo (jogo de alta volatilidade)", () => {
+  const r = simulate(dragonsHoard, 120_000);
+  // alta volatilidade ⇒ tolerância larga em amostra pequena (audit real usa 10M+)
+  assert.ok(r.rtp > 0.85 && r.rtp < 1.10, `RTP ${(r.rtp*100).toFixed(1)}% fora da faixa esperada`);
+  assert.ok(r.hitRate > 0.12 && r.hitRate < 0.35, `hit ${(r.hitRate*100).toFixed(1)}% inesperado`);
+});

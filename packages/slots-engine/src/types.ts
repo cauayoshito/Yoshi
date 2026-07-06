@@ -34,9 +34,35 @@ export interface ScatterFeature {
 
 export type Volatility = "low" | "medium" | "high";
 
+/**
+ * Mecânica do jogo:
+ * - "lines": paylines fixas (estilo Fortune Tiger). Padrão.
+ * - "scatter-tumble": paga por QUANTIDADE do símbolo em qualquer posição
+ *   (scatter pays) e faz tumble/cascade — símbolos vencedores somem e caem
+ *   novos, repetindo enquanto houver ganho (estilo Gates of Olympus).
+ */
+export type GameKind = "lines" | "scatter-tumble";
+
+/** Faixa de pagamento por quantidade (scatter pays). */
+export interface ScatterPayTier {
+  readonly symbol: SymbolId;
+  /** quantidade mínima do símbolo no grid para pagar esta faixa. */
+  readonly minCount: number;
+  /** multiplicador da aposta total. */
+  readonly multiplier: number;
+}
+
+/** Um passo do tumble (para o cliente animar a cascata). */
+export interface TumbleStep {
+  readonly grid: readonly SymbolId[];
+  readonly winningCells: readonly number[];
+  readonly stepMultiplier: number;
+}
+
 export interface GameConfig {
   readonly id: string;
   readonly name: string;
+  readonly kind?: GameKind;
   readonly rows: number;
   readonly cols: number;
   /** Símbolos válidos do jogo (inclui wild/scatter se houver). */
@@ -49,6 +75,8 @@ export interface GameConfig {
    */
   readonly paylines: readonly (readonly number[])[];
   readonly paytable: readonly PaytableEntry[];
+  /** Faixas de pagamento por quantidade — usado quando kind = "scatter-tumble". */
+  readonly scatterPays?: readonly ScatterPayTier[];
   /** Símbolo curinga: substitui qualquer símbolo comum (nunca o scatter). */
   readonly wild?: SymbolId;
   readonly scatter?: ScatterFeature;
@@ -95,6 +123,8 @@ export interface SpinResult {
   readonly totalMultiplier: number;
   readonly scatters: number;
   readonly freeSpinsAwarded: number;
+  /** Passos da cascata (só em jogos "scatter-tumble"). */
+  readonly tumbles?: readonly TumbleStep[];
 }
 
 /** Erros de configuração detectados na validação. */
