@@ -4,6 +4,7 @@ import { pool } from "../db.js";
 import { config } from "../config.js";
 import { signToken, requireAuth } from "../middleware/auth.js";
 import { ApiError, wrap } from "../middleware/error.js";
+import { checkNotExcluded } from "../services/responsible.js";
 
 export const authRouter = Router();
 
@@ -47,6 +48,7 @@ authRouter.post("/login", wrap(async (req, res) => {
   if (!user || !(await bcrypt.compare(String(req.body?.password || ""), user.password_hash))) {
     throw new ApiError(401, "E-mail ou senha incorretos");
   }
+  await checkNotExcluded(user.id); // autoexclusão bloqueia o login
   res.json({ token: signToken(user.id), user: publicUser(user) });
 }));
 

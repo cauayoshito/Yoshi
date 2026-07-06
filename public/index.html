@@ -331,6 +331,21 @@
             <button class="btn btn-ghost btn-danger" id="logoutBtn">Sair da conta</button>
           </div>
           <div class="profile-card profile-card-wide">
+            <span class="pc-label">🛡️ Jogo responsável</span>
+            <p class="muted rg-intro">Defina limites para jogar com controle. Reduzir um limite vale na hora.</p>
+            <div class="rg-grid">
+              <label>Depósito diário (R$)<input type="number" id="rgDepDaily" min="0" step="10" placeholder="sem limite" /></label>
+              <label>Depósito semanal (R$)<input type="number" id="rgDepWeekly" min="0" step="10" placeholder="sem limite" /></label>
+              <label>Perda diária (R$)<input type="number" id="rgLossDaily" min="0" step="10" placeholder="sem limite" /></label>
+              <label>Perda semanal (R$)<input type="number" id="rgLossWeekly" min="0" step="10" placeholder="sem limite" /></label>
+              <label>Lembrete de tempo (min)<input type="number" id="rgSession" min="0" step="5" placeholder="desligado" /></label>
+            </div>
+            <div class="rg-actions">
+              <button class="btn btn-primary" id="rgSaveBtn">Salvar limites</button>
+              <button class="btn btn-ghost btn-danger" id="rgExcludeBtn">Autoexcluir</button>
+            </div>
+          </div>
+          <div class="profile-card profile-card-wide">
             <span class="pc-label">Apostas esportivas</span>
             <div id="sportBetsList" class="history-list" style="margin-bottom:18px">
               <p class="muted">Nenhuma aposta ainda. Confira a Copa 2026! ⚽</p>
@@ -342,6 +357,22 @@
           </div>
         </div>
       </section>
+
+      <!-- Autoexclusão -->
+      <div class="modal-overlay hidden" id="excludeModal">
+        <div class="modal">
+          <button class="modal-close" data-close>&times;</button>
+          <h2>🛡️ Autoexclusão</h2>
+          <p class="modal-sub">Você não conseguirá entrar nem apostar durante o período escolhido. Escolha com cuidado.</p>
+          <div class="quick-amounts rg-exclude-opts">
+            <button class="amount-btn" data-exclude-days="1">24 horas</button>
+            <button class="amount-btn" data-exclude-days="7">7 dias</button>
+            <button class="amount-btn" data-exclude-days="30">30 dias</button>
+            <button class="amount-btn" data-exclude-days="90">90 dias</button>
+          </div>
+          <button class="btn btn-ghost btn-danger btn-block" id="rgExcludePermBtn" style="margin-top:12px">Autoexclusão permanente</button>
+        </div>
+      </div>
 
       <!-- FOOTER -->
       <footer class="footer">

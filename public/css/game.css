@@ -224,9 +224,45 @@
 .vf-cell .yf-sym, .vf-cell .emo { width: 60%; height: auto; }
 .vf-cell.yf-win { border-color: var(--gold); box-shadow: inset 0 0 0 1px rgba(255,184,0,.5); }
 
-/* Responsivo */
+/* ============ RESPONSIVO ============ */
+
+/* Tablet: painel lateral desce para baixo do jogo */
 @media (max-width: 900px) {
   .yf-layout { grid-template-columns: 1fr; }
-  .yf-grid { max-width: 340px; }
-  .yf-burst { font-size: 2.4rem; }
+  .yf-grid { max-width: 380px; }
+  .yf-burst { font-size: 2.6rem; }
+}
+
+/* Celular: layout vertical enxuto, HUD grande e sem overflow */
+@media (max-width: 640px) {
+  .yf-head { gap: 6px; margin-bottom: 10px; }
+  .yf-title { font-size: 1.05rem; }
+  .yf-head .btn-back { padding: 8px 12px; font-size: 0.78rem; }
+  /* botões de ícone compactos; "Fairness" vira só o escudo */
+  #yfMuteBtn, .yf-fair-btn { padding: 8px 11px; font-size: 0.9rem; }
+  .yf-fair-btn { font-size: 0; }
+  .yf-fair-btn::before { content: "🛡️"; font-size: 1rem; }
+
+  .yf-frame { padding: 14px 12px 12px; border-radius: var(--r-lg); }
+  .yf-grid { max-width: 100%; gap: 8px; }
+  .yf-fs-banner { font-size: 0.76rem; padding: 7px 10px; }
+  .yf-msg { font-size: 0.95rem; margin-top: 12px; }
+  .yf-burst { font-size: 2.2rem; }
+  .yf-burst-fs { font-size: 1.4rem; }
+
+  /* HUD: aposta em cima, GIRAR + AUTO embaixo, alvos de toque grandes */
+  .yf-hud { flex-wrap: wrap; gap: 10px; }
+  .bet-control { flex: 1 1 100%; justify-content: center; }
+  .yf-spin { flex: 1 1 auto; min-height: 52px; font-size: 1.1rem; }
+  .yf-auto { flex: 0 0 auto; min-height: 52px; padding: 0 18px; }
+
+  .yf-side { gap: 12px; }
+  .yf-panel { padding: 14px 16px; }
+}
+
+/* Celular estreito: encaixa o grid sem cortar */
+@media (max-width: 380px) {
+  .yf-title { font-size: 0.95rem; }
+  .yf-grid { gap: 6px; }
+  .yf-spin { font-size: 1rem; }
 }

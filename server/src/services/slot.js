@@ -3,6 +3,7 @@ import { withTx } from "../db.js";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/error.js";
 import { applyEntries } from "./wallet.js";
+import { assertBetAllowed } from "./responsible.js";
 
 /**
  * Fortune Yoshi — slot 3x3, 5 linhas de pagamento.
@@ -57,6 +58,7 @@ export async function spin(userId, betCents) {
   const winCents = betCents * totalMult;
 
   const balanceCents = await withTx(async (client) => {
+    await assertBetAllowed(userId, client);
     const balance = await applyEntries(
       userId,
       [

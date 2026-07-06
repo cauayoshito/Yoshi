@@ -532,7 +532,55 @@
     } catch { /* silencioso */ }
   }
 
+  /* ============ JOGO RESPONSÁVEL ============ */
+  const reaisToCents = (v) => (v === "" || v == null ? null : Math.round(Number(v) * 100));
+  const centsToReais = (c) => (c == null ? "" : c / 100);
+
+  async function loadResponsible() {
+    try {
+      const r = await api("GET", "/api/responsible");
+      $("#rgDepDaily").value = centsToReais(r.depositDailyCents);
+      $("#rgDepWeekly").value = centsToReais(r.depositWeeklyCents);
+      $("#rgLossDaily").value = centsToReais(r.lossDailyCents);
+      $("#rgLossWeekly").value = centsToReais(r.lossWeeklyCents);
+      $("#rgSession").value = r.sessionMinutes ?? "";
+    } catch { /* silencioso */ }
+  }
+
+  if ($("#rgSaveBtn")) {
+    $("#rgSaveBtn").addEventListener("click", async () => {
+      try {
+        await api("PUT", "/api/responsible/limits", {
+          depositDailyCents: reaisToCents($("#rgDepDaily").value),
+          depositWeeklyCents: reaisToCents($("#rgDepWeekly").value),
+          lossDailyCents: reaisToCents($("#rgLossDaily").value),
+          lossWeeklyCents: reaisToCents($("#rgLossWeekly").value),
+          sessionMinutes: $("#rgSession").value === "" ? null : Number($("#rgSession").value),
+        });
+        toast("🛡️ Limites salvos. Jogue com responsabilidade!");
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+    $("#rgExcludeBtn").addEventListener("click", () => openModal("excludeModal"));
+    document.addEventListener("click", async (e) => {
+      const opt = e.target.closest("[data-exclude-days]");
+      const perm = e.target.closest("#rgExcludePermBtn");
+      if (!opt && !perm) return;
+      const body = perm ? { permanent: true } : { days: Number(opt.dataset.excludeDays) };
+      try {
+        await api("POST", "/api/responsible/self-exclude", body);
+        closeModals();
+        toast("Autoexclusão ativada. Cuide-se. 💚");
+        setTimeout(() => { setLoggedOut(); showView("home"); }, 1600);
+      } catch (err) {
+        toast(err.message);
+      }
+    });
+  }
+
   async function loadHistory() {
+    loadResponsible();
     loadSportBets();
     try {
       const data = await api("GET", "/api/games/history");

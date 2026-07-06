@@ -6,6 +6,7 @@ import { pool, withTx } from "../db.js";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/error.js";
 import { applyEntries } from "./wallet.js";
+import { assertBetAllowed } from "./responsible.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const MATCHES = JSON.parse(
@@ -66,6 +67,7 @@ export async function placeBet(userId, matchId, pick, stakeCents) {
   const potentialWinCents = Math.floor(stakeCents * odds);
 
   return withTx(async (client) => {
+    await assertBetAllowed(userId, client);
     const balanceCents = await applyEntries(
       userId,
       [{ type: "bet", amountCents: -stakeCents, meta: { sport: true, matchId, pick } }],

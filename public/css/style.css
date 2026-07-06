@@ -1478,7 +1478,8 @@ body {
   .category-chips { display: flex; }
   .auth-buttons .btn-ghost { display: none; }
   .header-inner { gap: 10px; padding: 0 14px; }
-  .header-search { padding: 8px 13px; }
+  /* busca sai do header no mobile (ficava sobre os botões); fica nos chips/categorias */
+  .header-search { display: none; }
   .balance-chip { padding: 8px 12px; font-size: 0.84rem; }
   .user-area .btn-deposit span { display: none; }
   .user-area .btn-deposit { padding: 10px 12px; border-radius: 50%; }
@@ -1577,3 +1578,33 @@ body {
   .live-race-grid { grid-template-columns: 1fr; }
   .jp-note { display: none; }
 }
+
+/* ============ JOGO RESPONSÁVEL (perfil) ============ */
+.rg-intro { margin-bottom: 14px; }
+.rg-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.rg-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-2);
+}
+.rg-grid input {
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+}
+.rg-grid input:focus { border-color: var(--green); }
+.rg-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.rg-exclude-opts { grid-template-columns: repeat(4, 1fr); }

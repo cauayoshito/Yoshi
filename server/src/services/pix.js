@@ -5,6 +5,7 @@ import { pool, withTx } from "../db.js";
 import { config } from "./../config.js";
 import { ApiError } from "../middleware/error.js";
 import { applyEntries } from "./wallet.js";
+import { assertDepositAllowed } from "./responsible.js";
 
 /**
  * Payload EMV "copia e cola" via pix-utils (github.com/thalesog/pix-utils).
@@ -29,6 +30,7 @@ export async function createCharge(userId, amountCents) {
   if (amountCents > config.limits.maxDepositCents) {
     throw new ApiError(400, `Depósito máximo: R$ ${(config.limits.maxDepositCents / 100).toFixed(2)}`);
   }
+  await assertDepositAllowed(userId, amountCents); // limites + autoexclusão
 
   const txid = crypto.randomBytes(16).toString("hex");
   const brcode = buildBrCode(amountCents, txid);

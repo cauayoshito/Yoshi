@@ -3,6 +3,7 @@ import { pool, withTx } from "../db.js";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/error.js";
 import { applyEntries, getBalance } from "./wallet.js";
+import { assertBetAllowed } from "./responsible.js";
 
 /**
  * Mines 5x5 com 4 bombas. As posições das bombas SÓ existem no servidor —
@@ -44,6 +45,7 @@ export async function start(userId, betCents) {
   while (bombs.size < BOMBS) bombs.add(crypto.randomInt(SIZE));
 
   return withTx(async (client) => {
+    await assertBetAllowed(userId, client);
     if (await getActiveRound(userId, client, true)) {
       throw new ApiError(409, "Você já tem uma rodada de Mines em andamento");
     }

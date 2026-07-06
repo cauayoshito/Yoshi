@@ -212,6 +212,21 @@ export async function migrate() {
     INSERT INTO jackpot (id, amount_cents) VALUES (1, 1000000) ON CONFLICT (id) DO NOTHING;
   `);
 
+  // Jogo responsável (exigência PAGCOR e de todo regulador sério)
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS responsible_limits (
+      user_id              BIGINT PRIMARY KEY REFERENCES users(id),
+      deposit_daily_cents  BIGINT,   -- NULL = sem limite
+      deposit_weekly_cents BIGINT,
+      loss_daily_cents     BIGINT,
+      loss_weekly_cents    BIGINT,
+      session_minutes      INT,      -- reality-check no jogo
+      excluded_until       TIMESTAMPTZ,  -- autoexclusão temporária
+      excluded_permanent   BOOLEAN NOT NULL DEFAULT false,
+      updated_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
   // Defesa em profundidade: RLS ligado em tudo, sem policies para os
   // papéis do PostgREST (anon/authenticated ficam com negação total).
   // Nossa API conecta como owner e não é afetada — a autorização real

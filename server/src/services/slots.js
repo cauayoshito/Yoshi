@@ -24,6 +24,7 @@ import { pool, withTx } from "../db.js";
 import { config } from "../config.js";
 import { ApiError } from "../middleware/error.js";
 import { applyEntries } from "./wallet.js";
+import { assertBetAllowed } from "./responsible.js";
 
 /** Publica os jogos da engine no catálogo (idempotente; roda no boot). */
 export async function ensureGames() {
@@ -127,6 +128,7 @@ export async function spin(userId, gameId, betCentsRaw) {
     if (isFreeSpin) {
       betCents = session.free_spin_bet_cents;
     } else {
+      await assertBetAllowed(userId, client); // limites de perda + autoexclusão
       betCents = Math.round(Number(betCentsRaw));
       if (
         !Number.isInteger(betCents) ||
