@@ -16,8 +16,14 @@
   let balanceCents = 0;
   let GAMES = [];
 
-  const fmt = (cents) =>
-    (cents / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // Número puro no locale ativo (sem símbolo) — usado no chip de saldo.
+  const fmt = (cents) => {
+    const loc = window.YBI18n ? (window.YBI18n.lang === "en" ? "en-US" : "pt-BR") : "pt-BR";
+    return (cents / 100).toLocaleString(loc, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  // Valor formatado COM moeda/símbolo (plugável via window.YBI18n.setCurrency).
+  const money = (cents) =>
+    window.YBI18n ? window.YBI18n.money(cents) : "R$ " + fmt(cents);
 
   /* ============ CLIENTE DA API ============ */
   async function api(method, path, body) {
@@ -115,6 +121,22 @@
     backdrop.classList.toggle("show", sidebar.classList.contains("open"));
   });
   backdrop.addEventListener("click", closeSidebar);
+
+  /* ============ IDIOMA (pt-BR / en) ============ */
+  const langToggle = $("#langToggle");
+  if (langToggle && window.YBI18n) {
+    const syncLabel = () => {
+      const lbl = $("#langLabel");
+      if (lbl) lbl.textContent = window.YBI18n.lang === "en" ? "EN" : "PT";
+    };
+    syncLabel();
+    langToggle.addEventListener("click", () => {
+      window.YBI18n.setLang(window.YBI18n.lang === "en" ? "pt-BR" : "en");
+      syncLabel();
+    });
+    // Ao trocar idioma/moeda, re-renderiza valores já pintados.
+    window.addEventListener("yb:langchange", () => setBalance(balanceCents));
+  }
 
   /* ============ NAVEGAÇÃO ENTRE VIEWS ============ */
   // Views físicas: home, catalog, promos, profile.
@@ -258,7 +280,7 @@
         pixKey: user.email,
       });
       setBalance(data.balanceCents);
-      toast(`⚡ Saque de R$ ${fmt(data.withdrawal.amount_cents)} enviado para sua chave PIX!`);
+      toast(`⚡ Saque de ${money(data.withdrawal.amount_cents)} enviado para sua chave PIX!`);
     } catch (err) {
       toast(err.message);
     }
@@ -277,7 +299,7 @@
 
   function updateBonusNote() {
     $("#bonusNote").innerHTML =
-      `🎁 Primeiro depósito ganha <strong>+R$ ${fmt(Math.min(depositValue, 500) * 100)} de bônus</strong> (100%)`;
+      `🎁 Primeiro depósito ganha <strong>+${money(Math.min(depositValue, 500) * 100)} de bônus</strong> (100%)`;
   }
 
   $$(".amount-btn").forEach((btn) =>
@@ -319,7 +341,7 @@
             stopPixPolling();
             closeModals();
             setBalance(st.balanceCents);
-            toast(`✅ Depósito de R$ ${fmt(st.amount_cents)} confirmado!`);
+            toast(`✅ Depósito de ${money(st.amount_cents)} confirmado!`);
           }
         } catch { /* tenta de novo no próximo tick */ }
       }, 1500);
@@ -526,8 +548,8 @@
       list.innerHTML = data.bets
         .map(
           (b) => `<div class="history-item">
-            <span>${b.match ? `${b.match.home.name} x ${b.match.away.name}` : b.match_id} · <strong>${b.pickLabel}</strong> @ ${b.odds.toFixed(2)} · R$ ${fmt(b.stake_cents)}</span>
-            <span>${statusChip[b.status] || b.status} <strong class="hl-green">R$ ${fmt(b.potential_win_cents)}</strong></span>
+            <span>${b.match ? `${b.match.home.name} x ${b.match.away.name}` : b.match_id} · <strong>${b.pickLabel}</strong> @ ${b.odds.toFixed(2)} · ${money(b.stake_cents)}</span>
+            <span>${statusChip[b.status] || b.status} <strong class="hl-green">${money(b.potential_win_cents)}</strong></span>
           </div>`
         )
         .join("");
@@ -598,8 +620,8 @@
           const cls = net >= 0 ? "history-win" : "history-loss";
           const sign = net >= 0 ? "+" : "−";
           return `<div class="history-item">
-            <span>${names[r.game] || r.game} · aposta R$ ${fmt(r.bet_cents)}</span>
-            <span class="${cls}">${sign} R$ ${fmt(Math.abs(net))}</span>
+            <span>${names[r.game] || r.game} · aposta ${money(r.bet_cents)}</span>
+            <span class="${cls}">${sign} ${money(Math.abs(net))}</span>
           </div>`;
         })
         .join("");
@@ -648,7 +670,7 @@
     function tick(t) {
       const k = Math.min(1, (t - t0) / dur);
       const v = start + (target - start) * (1 - Math.pow(1 - k, 3));
-      el.textContent = "R$ " + fmt(Math.round(v));
+      el.textContent = money(Math.round(v));
       if (k < 1) requestAnimationFrame(tick);
       else jpShown = target;
     }
@@ -685,9 +707,9 @@
       <td><span class="lb-game"><span class="ico">${icon(w.emoji)}</span>${w.game}</span></td>
       <td class="lb-user">${w.player}</td>
       <td class="lb-time hide-sm">${time}</td>
-      <td>R$ ${fmt(w.bet_cents)}</td>
+      <td>${money(w.bet_cents)}</td>
       <td class="lb-mult hide-sm">${Number(w.multiplier).toFixed(2)}x</td>
-      <td class="lb-profit-win">+R$ ${fmt(w.payout_cents)}</td>
+      <td class="lb-profit-win">+${money(w.payout_cents)}</td>
     </tr>`;
   }
 
@@ -706,14 +728,14 @@
   async function pollRace() {
     try {
       const r = await api("GET", "/api/stats/race");
-      $("#racePool").textContent = "R$ " + fmt(r.prizePoolCents);
+      $("#racePool").textContent = money(r.prizePoolCents);
       if (!r.ranking.length) return;
       $("#raceList").innerHTML = r.ranking
         .map(
           (p, i) => `<div class="race-row">
             <span class="race-pos">${i + 1}º</span>${p.player}
-            <span class="race-wagered">R$ ${fmt(p.wagered_cents)}</span>
-            <span class="race-prize">${r.prizes[i] ? "R$ " + fmt(r.prizes[i]) : "—"}</span>
+            <span class="race-wagered">${money(p.wagered_cents)}</span>
+            <span class="race-prize">${r.prizes[i] ? money(r.prizes[i]) : "—"}</span>
           </div>`
         )
         .join("");
@@ -831,8 +853,8 @@
   function updateSlipReturn() {
     if (!slipSelection) return;
     const stake = Number($("#bsStake").value) || 0;
-    $("#bsReturn").textContent = `R$ ${fmt(Math.floor(stake * 100 * slipSelection.odds))}`;
-    $("#bsSubmit").textContent = stake > 0 ? `Apostar R$ ${fmt(stake * 100)}` : "Fazer aposta";
+    $("#bsReturn").textContent = `${money(Math.floor(stake * 100 * slipSelection.odds))}`;
+    $("#bsSubmit").textContent = stake > 0 ? `Apostar ${money(stake * 100)}` : "Fazer aposta";
   }
 
   $("#bsStake").addEventListener("input", updateSlipReturn);
@@ -856,7 +878,7 @@
         stakeCents,
       });
       setBalance(data.balanceCents);
-      toast(`✅ Aposta feita: ${data.bet.pickLabel} @ ${data.bet.odds.toFixed(2)} · retorno potencial R$ ${fmt(data.bet.potential_win_cents)}`);
+      toast(`✅ Aposta feita: ${data.bet.pickLabel} @ ${data.bet.odds.toFixed(2)} · retorno potencial ${money(data.bet.potential_win_cents)}`);
       closeSlip();
     } catch (err) {
       toast(err.message);
@@ -967,7 +989,7 @@
         renderMinesGrid(true);
         minesActive = false;
         $("#minesActionBtn").textContent = "COMEÇAR";
-        toast(`💰 Você retirou R$ ${fmt(data.winCents)} (${data.multiplier.toFixed(2)}x)!`);
+        toast(`💰 Você retirou ${money(data.winCents)} (${data.multiplier.toFixed(2)}x)!`);
       }
     } catch (err) {
       toast(err.message);
@@ -1001,7 +1023,7 @@
         setBalance(data.balanceCents);
         renderMinesGrid(true);
         $("#minesActionBtn").textContent = "COMEÇAR";
-        toast(`🏆 INCRÍVEL! Limpou o campo e ganhou R$ ${fmt(data.winCents)}!`);
+        toast(`🏆 INCRÍVEL! Limpou o campo e ganhou ${money(data.winCents)}!`);
         return;
       }
 
@@ -1014,7 +1036,7 @@
   });
 
   /* ============ BRIDGE (js/game.js) ============ */
-  window.YB = { api, toast, requireLogin, setBalance, fmt, icon, openModal, closeModals, stepBet };
+  window.YB = { api, toast, requireLogin, setBalance, fmt, money, icon, openModal, closeModals, stepBet };
   Object.defineProperty(window.YB, "user", { get: () => user });
 
   /* ============ PWA ============ */

@@ -22,6 +22,7 @@
   <link rel="stylesheet" href="css/game.css" />
   <!-- Scripts com defer: baixam em paralelo ao parse do HTML e executam
        na ordem (app.js publica window.YB antes de game.js consumir). -->
+  <script src="js/i18n.js" defer></script>
   <script src="js/twemoji-map.js" defer></script>
   <script src="js/data.js" defer></script>
   <script src="js/sound.js" defer></script>
@@ -36,29 +37,29 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-scroll">
       <nav class="side-group">
-        <span class="side-label">Cassino</span>
-        <a href="#" class="side-link active" data-view="home"><span class="side-ico">🏠</span>Início</a>
-        <a href="#" class="side-link" data-view="originals"><span class="side-ico">🐲</span>Yoshi Originals<span class="side-tag">HOT</span></a>
-        <a href="#" class="side-link" data-view="casino"><span class="side-ico">🎰</span>Slots</a>
-        <a href="#" class="side-link" data-view="crash"><span class="side-ico">🚀</span>Crash</a>
-        <a href="#" class="side-link" data-view="live"><span class="side-ico">🎥</span>Ao Vivo</a>
-        <a href="#" class="side-link" data-view="table"><span class="side-ico">🃏</span>Mesa</a>
-        <a href="#" class="side-link" data-view="new"><span class="side-ico">✨</span>Lançamentos</a>
+        <span class="side-label" data-i18n="nav.casino">Cassino</span>
+        <a href="#" class="side-link active" data-view="home"><span class="side-ico">🏠</span><span data-i18n="nav.home">Início</span></a>
+        <a href="#" class="side-link" data-view="originals"><span class="side-ico">🐲</span><span data-i18n="nav.originals">Yoshi Originals</span><span class="side-tag">HOT</span></a>
+        <a href="#" class="side-link" data-view="casino"><span class="side-ico">🎰</span><span data-i18n="nav.slots">Slots</span></a>
+        <a href="#" class="side-link" data-view="crash"><span class="side-ico">🚀</span><span data-i18n="nav.crash">Crash</span></a>
+        <a href="#" class="side-link" data-view="live"><span class="side-ico">🎥</span><span data-i18n="nav.live">Ao Vivo</span></a>
+        <a href="#" class="side-link" data-view="table"><span class="side-ico">🃏</span><span data-i18n="nav.table">Mesa</span></a>
+        <a href="#" class="side-link" data-view="new"><span class="side-ico">✨</span><span data-i18n="nav.new">Lançamentos</span></a>
       </nav>
       <nav class="side-group">
-        <span class="side-label">Esportes</span>
+        <span class="side-label" data-i18n="nav.sports">Esportes</span>
         <a href="#" class="side-link" data-view="sports"><span class="side-ico">⚽</span>Copa 2026<span class="side-tag side-tag-live">AO VIVO</span></a>
       </nav>
       <nav class="side-group">
-        <span class="side-label">Para você</span>
-        <a href="#" class="side-link" data-view="promos"><span class="side-ico">🎁</span>Promoções<span class="side-tag side-tag-gold">4</span></a>
-        <a href="#" class="side-link" data-view="profile"><span class="side-ico">👤</span>Minha Conta</a>
-        <a href="#" class="side-link"><span class="side-ico">💬</span>Suporte 24h</a>
+        <span class="side-label" data-i18n="nav.foryou">Para você</span>
+        <a href="#" class="side-link" data-view="promos"><span class="side-ico">🎁</span><span data-i18n="nav.promos">Promoções</span><span class="side-tag side-tag-gold">4</span></a>
+        <a href="#" class="side-link" data-view="profile"><span class="side-ico">👤</span><span data-i18n="nav.account">Minha Conta</span></a>
+        <a href="#" class="side-link"><span class="side-ico">💬</span><span data-i18n="nav.support">Suporte 24h</span></a>
       </nav>
       <div class="side-foot">
         <div class="side-rg">
           <span class="badge-18">18+</span>
-          <p>Jogue com responsabilidade</p>
+          <p data-i18n="rg.play">Jogue com responsabilidade</p>
         </div>
       </div>
     </div>
@@ -90,14 +91,15 @@
 
         <div class="header-search">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          <input type="text" id="searchInput" placeholder="Buscar jogos, provedores..." autocomplete="off" />
+          <input type="text" id="searchInput" data-i18n-ph="header.searchph" placeholder="Buscar jogos, provedores..." autocomplete="off" />
           <kbd>/</kbd>
         </div>
 
         <div class="header-actions">
+          <button class="lang-toggle" id="langToggle" title="Language / Idioma" aria-label="Trocar idioma">🌐 <span id="langLabel">PT</span></button>
           <div class="auth-buttons" id="authButtons">
-            <button class="btn btn-ghost" data-modal="loginModal">Entrar</button>
-            <button class="btn btn-primary" data-modal="registerModal">Criar conta</button>
+            <button class="btn btn-ghost" data-modal="loginModal" data-i18n="auth.login">Entrar</button>
+            <button class="btn btn-primary" data-modal="registerModal" data-i18n="auth.register">Criar conta</button>
           </div>
           <div class="user-area hidden" id="userArea">
             <div class="balance-chip" id="balanceChip" title="Minha carteira">
@@ -106,7 +108,7 @@
             </div>
             <button class="btn btn-deposit" data-modal="depositModal">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
-              <span>Depositar</span>
+              <span data-i18n="auth.deposit">Depositar</span>
             </button>
             <button class="avatar-btn" id="avatarBtn" title="Minha conta">👤</button>
           </div>
@@ -125,10 +127,10 @@
             <div class="banner banner-1">
               <div class="banner-glow"></div>
               <div class="banner-content">
-                <span class="banner-tag">🎉 BOAS-VINDAS</span>
+                <span class="banner-tag" data-i18n="hero1.tag">🎉 BOAS-VINDAS</span>
                 <h2>Bônus de <span class="hl-green">100%</span><br />até <span class="hl-gold">R$ 500</span></h2>
                 <p>No seu primeiro depósito via PIX. Cai na hora.</p>
-                <button class="btn btn-cta" data-modal="registerModal">Criar conta grátis</button>
+                <button class="btn btn-cta" data-modal="registerModal" data-i18n="hero1.cta">Criar conta grátis</button>
               </div>
               <div class="banner-art"><img src="assets/twemoji/1f42f.svg" alt="🐯" decoding="async" fetchpriority="high" width="240" height="240" /></div>
             </div>
@@ -226,7 +228,7 @@
       <section class="view hidden" id="view-sports">
         <div class="sports-hero">
           <div>
-            <span class="banner-tag">⚽ OITAVAS DE FINAL</span>
+            <span class="banner-tag" data-i18n="sports.hero.tag">⚽ OITAVAS DE FINAL</span>
             <h2>Copa do Mundo <span class="hl-gold">2026</span></h2>
             <p class="muted">Confrontos reais do mata-mata · Mercado 1X2 (demo)</p>
           </div>

@@ -8,7 +8,7 @@
   "use strict";
 
   const $ = (sel) => document.querySelector(sel);
-  const { api, toast, requireLogin, setBalance, fmt, icon } = window.YB;
+  const { api, toast, requireLogin, setBalance, fmt, money, icon } = window.YB;
   const S = window.YoshiSound;
 
   // Multi-jogo: tudo vem da config da engine (símbolos, tema, paytable).
@@ -67,8 +67,8 @@
     const row = document.createElement("div");
     row.className = "yf-hist-row";
     row.innerHTML = `
-      <span class="${net >= 0 ? "hl-green" : "yf-hist-loss"}">${net >= 0 ? "+" : "−"}R$ ${fmt(Math.abs(net))}</span>
-      <span class="yf-hist-meta">${spin.isFreeSpin ? "grátis" : "R$ " + fmt(spin.betCents)}${spin.result.featureMultiplier > 1 ? ` · x${spin.result.featureMultiplier}` : ""}</span>
+      <span class="${net >= 0 ? "hl-green" : "yf-hist-loss"}">${net >= 0 ? "+" : "−"}${money(Math.abs(net))}</span>
+      <span class="yf-hist-meta">${spin.isFreeSpin ? "grátis" : money(spin.betCents)}${spin.result.featureMultiplier > 1 ? ` · x${spin.result.featureMultiplier}` : ""}</span>
       <button class="yf-verify-link" data-round="${spin.roundId}">Verificar</button>`;
     list.prepend(row);
     while (list.children.length > 8) list.lastElementChild.remove();
@@ -191,7 +191,7 @@
 
       $("#yfMsg").innerHTML =
         spin.payoutCents > 0
-          ? `🎉 GANHOU <strong class="hl-gold">R$ ${fmt(spin.payoutCents)}</strong>${spin.result.featureMultiplier > 1 ? ` (x${spin.result.featureMultiplier})` : ""}`
+          ? `🎉 GANHOU <strong class="hl-gold">${money(spin.payoutCents)}</strong>${spin.result.featureMultiplier > 1 ? ` (x${spin.result.featureMultiplier})` : ""}`
           : "Quase! Tente de novo 🍀";
 
       setFsBanner();
@@ -281,7 +281,7 @@
 
       $("#vfBody").innerHTML = `
         ${gridHTML}
-        <div class="fair-field"><span>Resultado</span><code>${v.payoutCents > 0 ? `+R$ ${fmt(v.payoutCents)} (${v.result.totalMultiplier}x)` : "sem prêmio"}</code></div>
+        <div class="fair-field"><span>Resultado</span><code>${v.payoutCents > 0 ? `+${money(v.payoutCents)} (${v.result.totalMultiplier}x)` : "sem prêmio"}</code></div>
         <div class="fair-field"><span>Server seed (hash)</span><code>${v.fair.serverSeedHash}</code></div>
         <div class="fair-field"><span>Client seed</span><code>${v.fair.clientSeed}</code></div>
         <div class="fair-field"><span>Nonce</span><code>${v.fair.nonce}</code></div>

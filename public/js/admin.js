@@ -54,6 +54,40 @@
     return data;
   }
 
+  /* ============ EXPORTAÇÃO CSV ============ */
+  async function downloadCsv(report) {
+    const from = $("#expFrom")?.value || "";
+    const to = $("#expTo")?.value || "";
+    const qs = new URLSearchParams();
+    if (from) qs.set("from", from);
+    if (to) qs.set("to", to);
+    const url = `/api/admin/export/${report}.csv${qs.toString() ? "?" + qs : ""}`;
+    try {
+      const res = await fetch(url, {
+        headers: { ...(token ? { authorization: `Bearer ${token}` } : {}) },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const dispo = res.headers.get("Content-Disposition") || "";
+      const match = dispo.match(/filename="([^"]+)"/);
+      const a = document.createElement("a");
+      const objUrl = URL.createObjectURL(blob);
+      a.href = objUrl;
+      a.download = match ? match[1] : `yoshibet-${report}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objUrl);
+      toast(`📤 CSV de ${report} gerado`);
+    } catch (err) {
+      toast("Falha ao exportar: " + err.message);
+    }
+  }
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-export]");
+    if (btn) downloadCsv(btn.dataset.export);
+  });
+
   /* ============ GATE ============ */
   function showGate() {
     $("#admGate").classList.remove("hidden");

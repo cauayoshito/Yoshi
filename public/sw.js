@@ -5,6 +5,7 @@ const PRECACHE = [
   "/index.html",
   "/css/style.css",
   "/css/game.css",
+  "/js/i18n.js",
   "/js/twemoji-map.js",
   "/js/data.js",
   "/js/app.js",

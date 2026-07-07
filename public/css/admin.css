@@ -221,6 +221,16 @@
 .adm-section-head { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
 .adm-section-head h2 { font-size: 1rem; font-weight: 800; }
 .adm-search { margin-left: auto; }
+
+.exp-controls { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 14px; }
+.exp-controls > label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted, #93a0b4); }
+.exp-controls input[type="date"] {
+  padding: 8px 10px; border-radius: 8px; font-size: 13px;
+  background: var(--surface-2, #171a21); color: var(--text, #e8eaed);
+  border: 1px solid var(--border, #262a33); color-scheme: dark;
+}
+.exp-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+.exp-buttons .btn { font-size: 12.5px; }
 .adm-search input {
   background: var(--surface);
   border: 1px solid var(--border);

@@ -234,3 +234,166 @@ adminRouter.get("/slots/rtp-log", wrap(async (_req, res) => {
 adminRouter.post("/slots/rtp-snapshot", wrap(async (_req, res) => {
   res.json({ snapshots: await slots.snapshotRtp("admin") });
 }));
+
+/* ============ EXPORTAÇÃO CSV (relatórios regulatórios) ============ */
+
+/** Escapa um campo para CSV (RFC 4180). */
+function csvCell(v) {
+  if (v === null || v === undefined) return "";
+  const s = v instanceof Date ? v.toISOString() : String(v);
+  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function toCsv(columns, rows) {
+  const head = columns.map((c) => csvCell(c.label)).join(",");
+  const body = rows
+    .map((r) => columns.map((c) => csvCell(r[c.key])).join(","))
+    .join("\r\n");
+  // BOM p/ Excel abrir acentuação corretamente
+  return "﻿" + head + "\r\n" + body + "\r\n";
+}
+
+/** Faixa de datas opcional ?from=YYYY-MM-DD&to=YYYY-MM-DD (inclusive). */
+function dateRange(req) {
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(req.query.from || "") ? req.query.from : null;
+  const to = /^\d{4}-\d{2}-\d{2}$/.test(req.query.to || "") ? req.query.to : null;
+  return { from, to };
+}
+
+/**
+ * Relatórios regulatórios em CSV (PAGCOR/auditoria).
+ * GET /api/admin/export/:report.csv?from=&to=
+ * report ∈ transactions | rounds | sport-bets | users | ggr-daily
+ */
+adminRouter.get("/export/:report.csv", wrap(async (req, res) => {
+  const { from, to } = dateRange(req);
+  const clause = [];
+  const params = [];
+  if (from) { params.push(from); clause.push(`created_at::date >= $${params.length}`); }
+  if (to) { params.push(to); clause.push(`created_at::date <= $${params.length}`); }
+  const where = clause.length ? "WHERE " + clause.join(" AND ") : "";
+
+  let columns, rows, file;
+
+  switch (req.params.report) {
+    case "transactions": {
+      const q = await pool.query(
+        `SELECT t.id, t.created_at, u.id AS user_id, u.name, u.email,
+                t.type, t.amount_cents, t.meta
+         FROM transactions t JOIN users u ON u.id = t.user_id
+         ${where ? where.replace(/created_at/g, "t.created_at") : ""}
+         ORDER BY t.id`, params);
+      columns = [
+        { key: "id", label: "tx_id" }, { key: "created_at", label: "timestamp_utc" },
+        { key: "user_id", label: "user_id" }, { key: "name", label: "user_name" },
+        { key: "email", label: "user_email" }, { key: "type", label: "type" },
+        { key: "amount_cents", label: "amount_cents" }, { key: "meta", label: "meta" },
+      ];
+      rows = q.rows.map((r) => ({ ...r, meta: r.meta ? JSON.stringify(r.meta) : "" }));
+      file = "transactions";
+      break;
+    }
+    case "rounds": {
+      // Trilha provably-fair completa (engine): join com fair_seeds p/ hash e seeds.
+      const q = await pool.query(
+        `SELECT sr.id, sr.created_at, sr.user_id, sr.game_id, sr.game_version,
+                sr.bet_cents, sr.payout_cents, sr.is_free_spin, sr.nonce,
+                fs.server_seed_hash, fs.client_seed
+         FROM slot_rounds sr JOIN fair_seeds fs ON fs.id = sr.fair_seed_id
+         ${where ? where.replace(/created_at/g, "sr.created_at") : ""}
+         ORDER BY sr.id`, params);
+      columns = [
+        { key: "id", label: "round_id" }, { key: "created_at", label: "timestamp_utc" },
+        { key: "user_id", label: "user_id" }, { key: "game_id", label: "game_id" },
+        { key: "game_version", label: "game_version" },
+        { key: "bet_cents", label: "bet_cents" }, { key: "payout_cents", label: "payout_cents" },
+        { key: "is_free_spin", label: "is_free_spin" }, { key: "nonce", label: "nonce" },
+        { key: "server_seed_hash", label: "server_seed_hash" },
+        { key: "client_seed", label: "client_seed" },
+      ];
+      rows = q.rows;
+      file = "rounds";
+      break;
+    }
+    case "sport-bets": {
+      const q = await pool.query(
+        `SELECT s.id, s.created_at, s.user_id, s.match_id, s.pick, s.odds,
+                s.stake_cents, s.potential_win_cents, s.status
+         FROM sport_bets s
+         ${where ? where.replace(/created_at/g, "s.created_at") : ""}
+         ORDER BY s.id`, params);
+      columns = [
+        { key: "id", label: "bet_id" }, { key: "created_at", label: "timestamp_utc" },
+        { key: "user_id", label: "user_id" }, { key: "match_id", label: "match_id" },
+        { key: "pick", label: "pick" }, { key: "odds", label: "odds" },
+        { key: "stake_cents", label: "stake_cents" },
+        { key: "potential_win_cents", label: "potential_win_cents" },
+        { key: "status", label: "status" },
+      ];
+      rows = q.rows;
+      file = "sport-bets";
+      break;
+    }
+    case "users": {
+      const q = await pool.query(
+        `SELECT u.id, u.created_at, u.name, u.email, u.role, u.balance_cents,
+                (SELECT COALESCE(SUM(amount_cents),0) FROM transactions t
+                   WHERE t.user_id = u.id AND t.type='deposit') AS deposited_cents,
+                EXISTS (SELECT 1 FROM responsible_limits rl
+                   WHERE rl.user_id = u.id
+                     AND (rl.excluded_permanent OR rl.excluded_until IS NOT NULL)) AS self_excluded
+         FROM users u
+         ${where ? where.replace(/created_at/g, "u.created_at") : ""}
+         ORDER BY u.id`, params);
+      columns = [
+        { key: "id", label: "user_id" }, { key: "created_at", label: "registered_utc" },
+        { key: "name", label: "name" }, { key: "email", label: "email" },
+        { key: "role", label: "role" }, { key: "balance_cents", label: "balance_cents" },
+        { key: "deposited_cents", label: "deposited_cents" },
+        { key: "self_excluded", label: "self_excluded" },
+      ];
+      rows = q.rows;
+      file = "users";
+      break;
+    }
+    case "ggr-daily": {
+      const q = await pool.query(
+        `WITH casino AS (
+           SELECT created_at::date AS d, SUM(bet_cents) AS stake, SUM(win_cents) AS payout
+           FROM rounds WHERE status='settled' ${from ? "AND created_at::date >= $1" : ""} ${to ? `AND created_at::date <= $${from ? 2 : 1}` : ""}
+           GROUP BY 1),
+         sport AS (
+           SELECT created_at::date AS d, SUM(stake_cents) AS stake,
+                  SUM(CASE WHEN status='won' THEN potential_win_cents ELSE 0 END) AS payout
+           FROM sport_bets ${from ? "WHERE created_at::date >= $1" : ""} ${to ? `${from ? "AND" : "WHERE"} created_at::date <= $${from ? 2 : 1}` : ""}
+           GROUP BY 1)
+         SELECT COALESCE(casino.d, sport.d) AS d,
+                COALESCE(casino.stake,0) AS casino_stake, COALESCE(casino.payout,0) AS casino_payout,
+                COALESCE(sport.stake,0) AS sport_stake, COALESCE(sport.payout,0) AS sport_payout
+         FROM casino FULL OUTER JOIN sport ON casino.d = sport.d
+         ORDER BY d`, params);
+      columns = [
+        { key: "d", label: "date" },
+        { key: "casino_stake", label: "casino_stake_cents" },
+        { key: "casino_payout", label: "casino_payout_cents" },
+        { key: "sport_stake", label: "sport_stake_cents" },
+        { key: "sport_payout", label: "sport_payout_cents" },
+        { key: "ggr_cents", label: "ggr_cents" },
+      ];
+      rows = q.rows.map((r) => ({
+        ...r,
+        d: r.d instanceof Date ? r.d.toISOString().slice(0, 10) : r.d,
+        ggr_cents: Number(r.casino_stake) - Number(r.casino_payout)
+          + Number(r.sport_stake) - Number(r.sport_payout),
+      }));
+      file = "ggr-daily";
+      break;
+    }
+    default:
+      return res.status(404).json({ error: "Relatório desconhecido" });
+  }
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  res.setHeader("Content-Type", "text/csv; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="yoshibet-${file}-${stamp}.csv"`);
+  res.send(toCsv(columns, rows));
+}));

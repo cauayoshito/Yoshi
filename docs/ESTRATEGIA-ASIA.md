@@ -60,10 +60,10 @@ novos entrantes que precisam demonstrar compliance à PAGCOR sem pagar setup de
 | Gap | Exigido por | Status hoje |
 |---|---|---|
 | **Multi-tenant / white-label** (N operadores, 1 stack, temas por marca) | modelo de negócio B2B | ❌ single-tenant |
-| **i18n + multi-moeda** (EN, 中文, ₱/USD/USDT) | operador asiático | ❌ pt-BR/R$ fixos |
-| **Jogo responsável**: limites de depósito/perda, autoexclusão, realidade-check | PAGCOR (obrigatório) | ❌ só links no rodapé |
+| **i18n + multi-moeda** (EN, ₱/USD/EUR) | operador asiático | ✅ pt/en com dicionário central + moeda plugável (BRL/USD/PHP/EUR via Intl) |
+| **Jogo responsável**: limites de depósito/perda, autoexclusão, realidade-check | PAGCOR (obrigatório) | ✅ limites por período + autoexclusão bloqueando login/aposta |
 | **KYC/AML hooks** (verificação de idade/identidade, relatório de transações) | PAGCOR/AML | ❌ |
-| **Relatórios regulatórios exportáveis** (GGR, rodadas, RTP por período, CSV) | PAGCOR/auditoria | ⚠️ dados existem; falta exportação |
+| **Relatórios regulatórios exportáveis** (GGR, rodadas, RTP por período, CSV) | PAGCOR/auditoria | ✅ export CSV no backoffice (transações, rodadas fair, apostas, usuários, GGR diário) com faixa de datas |
 | **Papéis no backoffice** (admin/operador/auditor read-only) | due diligence | ⚠️ só admin |
 | **Observabilidade/SLA** (healthchecks, métricas, alertas, uptime público) | contrato B2B | ⚠️ básico |
 | **Migrações versionadas + backups testados** | operação séria | ⚠️ schema idempotente no boot |
@@ -72,14 +72,16 @@ novos entrantes que precisam demonstrar compliance à PAGCOR sem pagar setup de
 
 ## 5. Roadmap priorizado
 
-**P0 — habilitadores de venda (fazer já):**
+**P0 — habilitadores de venda:**
 1. Multi-tenant básico: tabela `tenants`, tema/marca por tenant, jogos e limites
-   por tenant — transforma o repo de "um cassino" em "uma plataforma"
-2. i18n (pt/en) com dicionário central + formatação de moeda plugável
-3. Jogo responsável: limites de depósito/perda por período, autoexclusão com
-   bloqueio real de login/aposta, realidade-check no jogo (PAGCOR exige — e é
-   diferencial de demo)
-4. Exportação de relatórios (CSV) no backoffice: GGR, rodadas, RTP por período
+   por tenant — transforma o repo de "um cassino" em "uma plataforma" _(pendente)_
+2. ✅ i18n (pt/en) com dicionário central + formatação de moeda plugável
+   (`public/js/i18n.js`: `window.YBI18n`, moedas BRL/USD/PHP/EUR via `Intl`)
+3. ✅ Jogo responsável: limites de depósito/perda por período, autoexclusão com
+   bloqueio real de login/aposta, realidade-check no jogo
+4. ✅ Exportação de relatórios (CSV) no backoffice: transações, rodadas
+   provably-fair, apostas esportivas, usuários e GGR diário, com faixa de datas
+   (`GET /api/admin/export/:report.csv`)
 
 **P1 — profundidade de produto:**
 5. Papéis no backoffice (operador/auditor read-only) + trilha de acesso
@@ -95,9 +97,12 @@ novos entrantes que precisam demonstrar compliance à PAGCOR sem pagar setup de
 11. Parceria com agregador (Slotegrator-like) como canal de distribuição
 
 **Performance (transversal, medir antes/depois com Lighthouse):**
-- TTFB da função serverless (keep-warm via cron diário já ajuda), `preconnect`
-  a fonts, lazy-load de imagens de card fora da viewport, code-split do admin,
-  comprimir twemoji SVGs, relatório Lighthouse ≥ 90 em Performance/PWA
+- ✅ Scripts com `defer` no `<head>` (baixam em paralelo ao parse), fonte
+  carregada sem bloquear render (`preload`+`onload`), imagens com
+  `decoding="async"`, `width/height` (evita CLS) e `loading="lazy"` fora da
+  viewport, `preconnect` a fonts.
+- Pendente: code-split do admin, comprimir twemoji SVGs, relatório Lighthouse
+  ≥ 90 medido em produção.
 
 ## 6. Fontes
 

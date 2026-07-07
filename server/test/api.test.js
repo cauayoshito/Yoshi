@@ -256,6 +256,36 @@ test("admin: stats retornam métricas coerentes", async () => {
   token = saved;
 });
 
+test("admin: exportação CSV de relatórios regulatórios", async () => {
+  // transações: precisa ter cabeçalho e pelo menos os depósitos dos testes
+  const res = await fetch(`${base}/api/admin/export/transactions.csv`, {
+    headers: { authorization: `Bearer ${adminToken}` },
+  });
+  assert.equal(res.status, 200);
+  assert.match(res.headers.get("content-type"), /text\/csv/);
+  assert.match(res.headers.get("content-disposition") || "", /filename=".*transactions.*\.csv"/);
+  const csv = await res.text();
+  const lines = csv.trim().split(/\r\n/);
+  assert.match(lines[0].replace(/^﻿/, ""), /^tx_id,timestamp_utc,user_id/);
+  assert.ok(lines.length > 1, "deveria ter ao menos uma transação exportada");
+
+  // ggr-daily e users respondem 200; relatório inválido dá 404
+  for (const rep of ["ggr-daily", "users", "rounds", "sport-bets"]) {
+    const r = await fetch(`${base}/api/admin/export/${rep}.csv`, {
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    assert.equal(r.status, 200, `export ${rep} deveria ser 200`);
+  }
+  const bad = await fetch(`${base}/api/admin/export/inexistente.csv`, {
+    headers: { authorization: `Bearer ${adminToken}` },
+  });
+  assert.equal(bad.status, 404);
+
+  // sem token de admin → negado
+  const noauth = await fetch(`${base}/api/admin/export/transactions.csv`);
+  assert.equal(noauth.status, 401);
+});
+
 test("liquidação: resultado paga vencedores e marca perdedores", async () => {
   // aposta no empate da partida aberta escolhida dinamicamente
   const expectedPaid = Math.floor(1000 * openMatch.odds.draw);

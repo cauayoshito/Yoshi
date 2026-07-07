@@ -225,7 +225,17 @@ body {
   font-family: inherit;
 }
 
-.header-actions { margin-left: auto; flex-shrink: 0; }
+.header-actions { margin-left: auto; flex-shrink: 0; display: flex; align-items: center; gap: 10px; }
+.lang-toggle {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 7px 10px; border-radius: 10px; cursor: pointer;
+  background: var(--surface-2, #171a21); color: var(--text, #e8eaed);
+  border: 1px solid var(--border, #262a33);
+  font-size: 12.5px; font-weight: 700; letter-spacing: .02em;
+  transition: border-color .15s, background .15s;
+}
+.lang-toggle:hover { border-color: var(--green, #00e880); }
+.lang-toggle:active { transform: scale(0.95); }
 .auth-buttons { display: flex; gap: 8px; }
 .user-area { display: flex; align-items: center; gap: 10px; }
 

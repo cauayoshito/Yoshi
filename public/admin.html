@@ -125,6 +125,26 @@
         </div>
       </section>
 
+      <!-- Relatórios regulatórios (CSV) -->
+      <section class="adm-section">
+        <div class="adm-section-head"><h2>📤 Relatórios regulatórios (CSV)</h2></div>
+        <p class="modal-sub" style="margin:0 0 12px">
+          Exportação para auditoria/PAGCOR. Faixa de datas opcional (UTC); em branco = tudo.
+          Valores em centavos; a trilha de rodadas inclui o hash provably-fair.
+        </p>
+        <div class="exp-controls">
+          <label>De <input type="date" id="expFrom" /></label>
+          <label>Até <input type="date" id="expTo" /></label>
+          <div class="exp-buttons">
+            <button class="btn btn-ghost" data-export="transactions">Transações</button>
+            <button class="btn btn-ghost" data-export="rounds">Rodadas (fair)</button>
+            <button class="btn btn-ghost" data-export="sport-bets">Apostas esportivas</button>
+            <button class="btn btn-ghost" data-export="users">Usuários</button>
+            <button class="btn btn-ghost" data-export="ggr-daily">GGR diário</button>
+          </div>
+        </div>
+      </section>
+
       <!-- Movimentações -->
       <section class="adm-section">
         <div class="adm-section-head"><h2>🧾 Últimas movimentações</h2></div>
